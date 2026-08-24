@@ -65,3 +65,91 @@ DATABASE_URL=postgresql://user.password@localhost:5432/tika
 | docs/DATA_MODEL.md | DB 스키마, ERD, 비즈니스 규칙 |
 | docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
 | docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
+
+## 코딩 컨벤션
+
+### TypeScript
+```typescript
+// Good
+interface Ticket {
+  id: number;
+  title: string;
+}
+
+export const TICKET_STATUS = {
+  BACKLOG: 'BACKLOG',
+  TODO: 'TODO',
+} as const;
+
+type TicketStatus = typeof TICKET_STATUS[keyof typeof TICKET_STATUS];
+
+// Bad
+interface Ticket {...}
+enum TicketStatus {...}
+let data:any;
+```
+### 백엔드 (app/api/ + src/server)
+
+### Route Hander 패턴
+```typescript
+//app/api/tickets/route.ts
+import { createTicketSchema } from '@/shared/validations/ticket';
+import { ticketService } from '@/server/services/ticketService';
+
+export async function POST(request: Request) {
+  // 1. 요청 파싱
+  const body = await request.json();
+
+  // 2. Zod 검증
+  const result = createTicketSchema.safeParse(body);
+  if(!result.success) {
+    return Response.json(
+      { error: { code: 'VALIDATION_ERROR', message: result.error.message} },
+      {status: 400}
+    );
+  }
+
+  // 3. 서비스 호출
+  const ticket = await ticketService.create(result.data);
+
+  //4. 응답 반환
+  return Response.json(ticket, { status: 201} );
+}
+```
+
+### 서비스 레이어 패턴
+```typescript
+// src/server/services/ticketService.ts
+import { db } from '@/server/db';
+import { tickets } from '@/server/db/schema';
+import type { CreateTicketInput, Ticket } from '@/shared/types';
+
+export const ticketService = {
+  async create(input: CreateTicketInput): Promise<Ticket> {
+    // 비즈니스 로직
+    const position = await this.calculatePosition(input.status);
+
+    // DB 쿼리
+    const [ticket] = await db
+      .insert(tickets)
+      .values({...input, position})
+      .returning();
+
+    return ticket;
+  },
+
+  async calculatePosition(status: string): Promise<number> {
+  //복잡한 로직은 별도 메서드로 분리
+  const lastTicket = await db
+    .select()
+    .from(tickets)
+    .where(eq(tickets.status, status))
+    .order(desc(tickets.position))
+    .limit(1);
+
+  return (lastTicket[0]?.position ?? 0)  -1024;
+  }
+
+};
+```
+
