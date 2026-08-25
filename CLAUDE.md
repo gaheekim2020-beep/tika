@@ -45,7 +45,7 @@ tika/
 ### 환경 변수
 ```bash
 # .env.local
-DATABASE_URL=postgresql://user.password@localhost:5432/tika
+DATABASE_URL=postgresql://user:password@localhost:5432/tika
 ```
 
 ### 경로 별칭
@@ -153,3 +153,252 @@ export const ticketService = {
 };
 ```
 
+#### 에러 응답 형식
+```typescript
+// 올바른 에러 응답
+return Response.json(
+  {
+    error: {
+      code: 'TICKET_NOT_FOUND',
+      message: '티켓을 찾을 수 없습니다.'
+    }
+  },
+  { status:404 }
+);
+
+// 잘못된 에러 응답
+return Response.json({message:'Not found'},{ status: 404});
+return Response.json({error: 'Not found'},{ status:404});
+```
+
+### 프런트엔드 (src/client)
+
+#### 컴포넌트 패턴
+```typescript
+// src/client/components/ticket/TicketCard.tsx
+import type { TicketWithMeta } from '@shared/types';
+
+interface TicketCardProps {
+  ticket: TicketWithMeta;
+  onEdit?: (id:number) => void;
+  onDelete?: (id:number) => void;
+}
+
+export const TicketCard = ({ticket, onEdit, onDelete}: TicketCardProps) => {
+  return (
+    <div className="p-4 bg-white rounded shadow">
+      <h3>{ticket.title}</h3>
+      {ticket.description && <p>{ticket.description}</p>}
+    </div>
+  );
+};
+```
+#### API 호출 패턴
+```typescript
+// src/client/api/ticketApi.ts
+import type { CreateTicketInput, Ticket } from '@/shared/types';
+
+export const ticketApi = {
+  async create(input: CreateTicketInput): Promise<Ticket> {
+    const res = await fetch('/api/tickets',{
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json'},
+      body: JSON.stringify(input),
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.error?.message ?? 'Unknown error');
+    }
+
+    return res.json();
+  },
+};
+
+//컴포넌트에서 사용
+import { ticketApi } from '@client/api/ticketApi';
+
+const handleCreate = async (data: CreateTicketInput) => {
+  try {
+    const ticket = await ticketApi.create(data);
+    // ...
+  }
+};
+```
+## SDD 워크플로우
+
+### 1. 구현 전 명세 확인
+```
+API 구현 → API_SPEC.md 확인
+컴포넌트 → COMPONENT_SPEC.md 확인
+DB 작업 → DATA_MODEL.md 확인
+타입 정의 → src/shared/types 확인
+```
+
+### 2. TDD 사이클
+```
+1. TEST_CASES.md에서 테스트 케이스 확인
+2. 테스트 코드 작성 (Red) - 실패하는 테스트
+3. 최소 구현 (Green) - 테스트 통과
+4. 리팩토링 (Refactor) - 코드 개선
+5. 명세 일치 확인
+```
+
+### 3. 구현 순서
+```
+1. src/shared/types - 타입 정의
+2. src/shared/validations -Zod 스키마
+3. __tests__/ -테스트 코드
+4. src/server/services/ - 비즈니스 로직
+5. app/api/ - Route Handler
+6. src/client/api/ - API 호출 함수
+7. src/client/components/ - UI 컴포넌트
+```
+## 개발 명령어
+
+### 일반 개발
+```bash
+npm run dev     # 개발 서버 실행
+npm run build   # 프로덕션 빌드
+npm run start   # 프로덕션 서버 실행
+npm run lint    # ESLint 실행
+```
+
+### 테스트
+```bash
+npm run test            # 전체 테스트 실행
+npm run test:components # 컴포넌트 테스트만
+npm run test:watch      # watch 모드
+npx tsc --noEmit        # 타입 체크
+```
+
+#### 테스트 환경 설정
+- **컴포넌트 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경 (기본값)
+- **서비스/API 테스트** (`__tests__/services/`, `__tests__/api/tickets*.test.ts`): `node` 환경 — 파일 상단에 `/** @jest-environment node */` 필수
+- **`--runInBand`**: 서비스 테스트가 공유 DB(`tika_test`)를 사용하므로 병렬 실행 시 race condition 발생. 순차 실행 필수
+
+### 데이터베이스
+```bash
+npm run db:generate   # 마이그레이션 생성
+npm run db:migrate    # 마이그레이션 실행
+npm run db:studio     # Drizzle Studio 실행
+npm run db:seed       # 시드 데이터 생성
+```
+
+### Git Hooks
+```bash
+bash .specify/scripts/bash/install-hooks.sh   # hook 설치
+rm .git/hooks/pre-commit                      # hook 제거
+```
+
+- **pre-commit**: 커밋 시 CHANGELOG.md 자동 업데이트
+- `/changelog` 수동 실행 시에는 hook이 자동 스킵됨 (중복 방지)
+
+## 검증 체크리스트
+
+### 커밋 전
+- [] `npx tsc --noEmit` 타입 체크 통과
+- [] `npx run test` 모든 테스트 통과
+- [] `npx run build` 빌드 성공
+- [] console.log 제거 확인
+- [] .env 파일 미포함 확인
+
+## PR 전
+- [] 명세 문서와 일치 확인
+- [] 테스트 커버리지 충분
+- [] 레이어 분리 준수 (Route Handler vs Service)
+- [] Zod 검증 누락 없음
+- [] 에러 응답 형식 일치
+
+## 금지 사항
+
+### 절대 하지 말 것
+- ❌ any 타입 사용
+- ❌ 명세 없는 기능 추가
+- ❌ 테스트 삭제 또는 `.skip()`
+- ❌ console.log 커밋
+- ❌ .env 파일 커밋
+- ❌ src/client/에서 DB 직접 접근
+- ❌ Route Handler에 비즈니스 로직 작성
+- ❌ **공식 문서 확인 없이 추축으로 구현** (특히 Claude Code 기능/구조)
+
+### 확인 필요 
+- ⚠️ DB 스키마 변경 → 마이그레이션 생성
+- ⚠️ shared 타입 변경 → 영향 범위 확인
+- ⚠️ API 응답 형식 변경 → API_SPEC.md 먼저 수정
+- ⚠️ 패키지 추가/업그레이드 → 호환성 확인
+- ⚠️ Claude Code 기능 사용 → https://code.claude.com/docs 먼저 확인
+- ⚠️ 프레임워크/라이브러리 기능 → 최신 공식 문서 확인
+
+## 문제 해결
+
+### 타입 에러
+```bash
+  #타입 체크
+  npx tsc --noEmit
+
+  # 캐시 삭제 후 재시도
+  rm -rf .next
+  npm run build
+```
+### 테스트 실패
+```bash
+# 단일 테스트 실행
+npm run test -- path/to/test.test.ts
+
+# 상세로그
+npm run test -- --verbose
+```
+
+### 서비스 테스트 실패 (DB 관련)
+```bash
+# 원인 1: @jest-environment node 주석 누락
+# → 서비스 테스트 파일 상단에 /** @jest-environment node */ 추가
+
+# 원인 2: 병렬 실행으로 DB 데이터 충돌
+# → --runInBand 플래그 사용 (package.json에 설정됨)
+
+# 원인 3: DB 연결 실패
+pg_isready # PostgreSQL 상태 확인
+psql $DATABASE_URL -c "SELECT 1"
+```
+
+### DB 연결 오류
+```bash
+# 환경 변수 확인
+echo $DATABASE_URL
+
+# DB 상태 확인
+psql $DATABASE_URL -c "SELECT 1"
+```
+
+## Git 워크플로우
+
+### 커밋 메시지
+```bash
+feat: 티켓 생성 API 구현
+fix: 티켓 삭제 시 404 에러 수정
+refactor: ticketService 로직 분리
+test: 티켓 목록 조회 테스트 추가
+docs: API_SPEC.md 에러 코드 추가
+```
+
+### 브랜치 전략
+- `main`: 프로덕션
+- `feature/*`: 기능 개발
+- `fix/*`: 버그 수정
+
+## 디자인 시스템
+스타일링 작업 시 반드시 아래 파일들을 참조할 것:
+- 컬러 토큰 (참조): `src/shared/design/colors.json`
+- 디자인 가이드: `docs/DESIGN_SYSTEM.md`
+- CSS 변수 (런타임): `app/globals.css` `:root`
+
+새 컴포넌트 생성 시 colors.json의 semantic 컬러와
+DESIGN_SYSTEM.md의 간격/그림자/라운딩 규칙을 따른다.
+컬러 변경 시 colors.json과 globals.css의 CSS 변수를 함께 업데이트한다.
+
+
+---
+
+**핵심 원칙과 거버넌스는 `.specify/memory/constitution.md` 참조**
