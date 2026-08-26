@@ -18,7 +18,7 @@
 |------|------|------|----------|--------|
 | title | string | O | 1~200자, 공백만 불가 | - |
 | description | string | X | 최대 1000자 | null |
-| priority | enum | X | LOW, MEDIUM, HIGH | MEDIUM |
+| priority | enum(문자열 리터럴) | X | LOW, MEDIUM, HIGH | MEDIUM |
 | plannedStartDate | date | X | ISO 8601 날짜/시간 형식 | null |
 | dueDate | date | X | 오늘 이후 날짜 (과거 날짜 불가) | null |
 
@@ -103,7 +103,7 @@
 |------|------|------|----------|--------|
 | title | string | X | 1~200자, 공백만 불가 | - |
 | description | string | X | 최대 1000자 | - |
-| priority | enum | X | LOW, MEDIUM, HIGH | - |
+| priority | enum(문자열 리터럴) | X | LOW, MEDIUM, HIGH | - |
 | plannedStartDate | string | X | ISO 8601 날짜/시간 형식 | - |
 | dueDate | string | X | 오늘 이후 날짜 (과거 날짜 불가) | - |
 
@@ -192,7 +192,7 @@
 | 필드 | 타입 | 필수 | 제약조건 | 기본값 |
 |------|------|------|----------|--------|
 | ticketId | number | O | 양의 정수 | - |
-| status | enum | O | BACKLOG, TODO, IN_PROGRESS (`DONE` 불가) | - |
+| status | enum(문자열 리터럴) | O | BACKLOG, TODO, IN_PROGRESS (`DONE` 불가) | - |
 | position | number | O | 실수형 | - |
 
 **처리 규칙**:
@@ -239,6 +239,6 @@
 **처리 방식**:
 - `status`가 `DONE`인 티켓은 항상 `isOverdue = false`
 - `dueDate`가 없는 티켓은 항상 `isOverdue = false`
-- 티켓 조회(`FR-02`), 수정(`FR-04`), 상태/순서 변경(`FR-06`) 응답 데이터 생성 시 해당 규칙 적용
+- 티켓 조회(`FR-002`), 수정(`FR-004`), 상태/순서 변경(`FR-007`) 응답 데이터 생성 시 해당 규칙 적용
 
 ---
