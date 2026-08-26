@@ -1,28 +1,19 @@
-@AGENTS.md
+# CLAUDE.md - Tika Project
 
-
-# CLAUDE.md - Tika Development Guide
+# 프로젝트 개요
+Tika는 티켓 기반 칸반 보드 TODO 앱이다.
+Next.js App Router 기반으로, 프론트엔드와 백엔드를 디렉토리 수준에서 분리한다.
+src/shared/에서 타입곽 검증 스키마를 공유한다.
 
 > **핵심 원칙은 `.specify/memory/constitution.md` 참조**
 > 이 문서는 구체적인 구현 방법과 실무 가이드를 다룬다.
 
 ## 프로젝트 구조
-```
-
-tika/
-├── .claude/ 
-└── docs/
-
-```
-
-### .claude/ 디렉토리 구조 (Claude Code 전용)
-- **`.claude/skills/`**: 권장 형식, 디렉토리 + `SKILL.md` + 지원 파일
-  - 예: `.claude/skills/changelog/SKILL.md`
-  - YAML frontmatter 필수 (name, description, user-invocable 등)
-- **`.claude/commands/`**: 레거시 형식, 단일 `.md` 파일 (여전히 작동)
-  - 예: `.claude/commands/speckit.plan.md`
-  - Skills보다 기능이 제한적이지만 간단한 용도로 사용 가능
-- **공식문서**: https://code.claude.com/docs/skills.md
+- app/api/      : 백엔드 진입점 (Route Handler, 요청 파싱 + 응답만)
+- src/server/   : 백엔드 로직 (services, db, middleware)
+- src/client/   : 프론트엔드 로직 (components, hooks, api 호출)
+- src/shared/   : 공유 타입, Zod 스키마, 상수
+- docs/         : 프로젝트 명세 문서
 
 ## 기술 스택
 - **Framework**: Next.js 15 (App Router)
@@ -30,11 +21,23 @@ tika/
 - **Frontend**: React 19
 - **Styling**: Tailwind CSS 4
 - **Drag & Drop**: @dnd-kit/core + @dnd-kit/sortable
-- **ORM**: Drizzle ORM 0.38.x
+- **ORM**: Drizzle ORM
 - **DB**: PostgreSQL (로컬: node-postgres, 배포: Vercel Postgres)
 - **Validation**: Zod
 - **Testing**: Jest + React Testing Library
 - **Deployment**: Vercel
+
+
+## 명세 문서 (구현 전 필수 확인)
+| 문서 | 용도 |
+|------|------|
+| docs/PRD.md | 제품 요구 사항 |
+| docs/TRD.md | 기술 요구 사항 |
+| docs/REQUIREMENTS.md | 상세 요구 사항 (FR + NFR + US ) |
+| docs/API_SPEC.md | API 엔드포인트 명세 |
+| docs/DATA_MODEL.md | DB 스키마, ERD, 비즈니스 규칙 |
+| docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
+| docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
 
 ## MCP Servers (Model Context Protocol)
 
@@ -55,176 +58,51 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tika
 - `@/server/` → `src/server/`
 - `@/client/` → `src/client/`
 
-## 명세 문서 (구현 전 필수 확인)
-| 문서 | 용도 |
-|------|------|
-| docs/PRD.md | 제품 요구 사항 |
-| docs/TRD.md | 기술 요구 사항 |
-| docs/REQUIREMENTS.md | 상세 요구 사항 (FR + NFR + US ) |
-| docs/API_SPEC.md | API 엔드포인트 명세 |
-| docs/DATA_MODEL.md | DB 스키마, ERD, 비즈니스 규칙 |
-| docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
-| docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
 
 ## 코딩 컨벤션
 
-### TypeScript
-```typescript
-// Good
-interface Ticket {
-  id: number;
-  title: string;
-}
+### TypeScript (공통)
+- strict 모드 사용
+- any 사용 금지, unknown 사용 후 타입 가드
+- 인터페이스는 I 접두사 없이 명사로 (예: Ticket, BoardData)
+- enum 대신 const 객체 + typeof 패턴 사용
+- 공유 타입은 반드시 @/shared/types에서 import
 
-export const TICKET_STATUS = {
-  BACKLOG: 'BACKLOG',
-  TODO: 'TODO',
-} as const;
+### 백엔드 (app/api/ + src/server/)
+- Route Handler는 얇게: 요청 파싱 → 서비스 호출 → 응답 반환
+- 비즈니스 로직은 src/server/services/에 작성
+- Zod로 요청 검증 (shared/validations에서 import)
+- 에러 응답 형식 통일: {error:{code, message}}
+- HTTP 상태 코드: 200, 201, 400, 404, 500
+- DB 쿼리는 Drizzle ORM으로만 작성 (raw SQL 금지)
 
-type TicketStatus = typeof TICKET_STATUS[keyof typeof TICKET_STATUS];
+### 프론트엔드 (src/client)
+- 함수 컴포넌트 + 화살표 함수
+- Props 타입은 컴포넌트 파일 내 정의
+- API 호출은 src/client/api/ticketApi.ts를 통해서만
+- 파일명: PascalCase (예: TicketCard.tsx)
 
-// Bad
-interface Ticket {...}
-enum TicketStatus {...}
-let data:any;
-```
-### 백엔드 (app/api/ + src/server)
+## 개발 규칙
 
-### Route Hander 패턴
-```typescript
-//app/api/tickets/route.ts
-import { createTicketSchema } from '@/shared/validations/ticket';
-import { ticketService } from '@/server/services/ticketService';
+### 반드시 지켜야 할 것
+- 새 기능 구현 전 TEST_CASES.md의 해상 테스트부터 작성
+- API 구현 시 API_SPEC.md의 명세를 정확히 따르기
+- 컴포넌트 구현 시 COMPONENT_SPEC.md의 Props와 동작 준수
+- 타입 변경 시 src/shared/types 먼저 수정
 
-export async function POST(request: Request) {
-  // 1. 요청 파싱
-  const body = await request.json();
+### 하지 말아야 할 것
+- 명세에 없는 기능 임의 추가 금지
+- 테스트 코드 삭제 또는 skip 금지
+- any 타입 사용 금지
+- consol.log 커밋 금지 (디버깅 후 제거)
+- src/client/에서 직접 DB 접근 금지
+- src/server/에서 React 관련 코드 작성 금지
 
-  // 2. Zod 검증
-  const result = createTicketSchema.safeParse(body);
-  if(!result.success) {
-    return Response.json(
-      { error: { code: 'VALIDATION_ERROR', message: result.error.message} },
-      {status: 400}
-    );
-  }
+### 경계 규칙
+- 백엔드 작입 시(app/api, src/server/) 프론트엔드(src/client/) 코드 수정 금지
+- 프론트엔드 작업 시(src/client) 백엔드(app/api/, src/server/) 코드 수정 금지
+- 양쪽에 영향을 주는 변경은 src/shared/ 먼저 수정 후 각각 반영
 
-  // 3. 서비스 호출
-  const ticket = await ticketService.create(result.data);
-
-  //4. 응답 반환
-  return Response.json(ticket, { status: 201} );
-}
-```
-
-### 서비스 레이어 패턴
-```typescript
-// src/server/services/ticketService.ts
-import { db } from '@/server/db';
-import { tickets } from '@/server/db/schema';
-import type { CreateTicketInput, Ticket } from '@/shared/types';
-
-export const ticketService = {
-  async create(input: CreateTicketInput): Promise<Ticket> {
-    // 비즈니스 로직
-    const position = await this.calculatePosition(input.status);
-
-    // DB 쿼리
-    const [ticket] = await db
-      .insert(tickets)
-      .values({...input, position})
-      .returning();
-
-    return ticket;
-  },
-
-  async calculatePosition(status: string): Promise<number> {
-  //복잡한 로직은 별도 메서드로 분리
-  const lastTicket = await db
-    .select()
-    .from(tickets)
-    .where(eq(tickets.status, status))
-    .order(desc(tickets.position))
-    .limit(1);
-
-  return (lastTicket[0]?.position ?? 0)  -1024;
-  }
-
-};
-```
-
-#### 에러 응답 형식
-```typescript
-// 올바른 에러 응답
-return Response.json(
-  {
-    error: {
-      code: 'TICKET_NOT_FOUND',
-      message: '티켓을 찾을 수 없습니다.'
-    }
-  },
-  { status:404 }
-);
-
-// 잘못된 에러 응답
-return Response.json({message:'Not found'},{ status: 404});
-return Response.json({error: 'Not found'},{ status:404});
-```
-
-### 프런트엔드 (src/client)
-
-#### 컴포넌트 패턴
-```typescript
-// src/client/components/ticket/TicketCard.tsx
-import type { TicketWithMeta } from '@shared/types';
-
-interface TicketCardProps {
-  ticket: TicketWithMeta;
-  onEdit?: (id:number) => void;
-  onDelete?: (id:number) => void;
-}
-
-export const TicketCard = ({ticket, onEdit, onDelete}: TicketCardProps) => {
-  return (
-    <div className="p-4 bg-white rounded shadow">
-      <h3>{ticket.title}</h3>
-      {ticket.description && <p>{ticket.description}</p>}
-    </div>
-  );
-};
-```
-#### API 호출 패턴
-```typescript
-// src/client/api/ticketApi.ts
-import type { CreateTicketInput, Ticket } from '@/shared/types';
-
-export const ticketApi = {
-  async create(input: CreateTicketInput): Promise<Ticket> {
-    const res = await fetch('/api/tickets',{
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json'},
-      body: JSON.stringify(input),
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.error?.message ?? 'Unknown error');
-    }
-
-    return res.json();
-  },
-};
-
-//컴포넌트에서 사용
-import { ticketApi } from '@client/api/ticketApi';
-
-const handleCreate = async (data: CreateTicketInput) => {
-  try {
-    const ticket = await ticketApi.create(data);
-    // ...
-  }
-};
-```
 ## SDD 워크플로우
 
 ### 1. 구현 전 명세 확인
@@ -400,5 +278,3 @@ DESIGN_SYSTEM.md의 간격/그림자/라운딩 규칙을 따른다.
 
 
 ---
-
-**핵심 원칙과 거버넌스는 `.specify/memory/constitution.md` 참조**
