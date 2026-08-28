@@ -244,6 +244,9 @@
 ### NFR-001: 성능
 - API 응답: 300ms 이내 (p95)
 - 보드 초기 로드: 2초 이내
+- First Contentful Paint: 1.5초 이내
+- Largest Contentful Paint: 2.5초 이내
+- Lighthouse Performance 점수: 90점 이상
 
 ### NFR-002: 반응형
 - 모바일 (360px~): 단일 칼럼 스크롤 뷰, 터치 드래그 지원
@@ -269,6 +272,12 @@
 - Vercel Postgres (Neon) - 서버리스 최적화
 - HTTPS 기본 제공
 - PR 별 프리뷰 배포 자동 생성
+
+### NFR-007: 보안
+- SQL Injection 방지: 모든 DB 쿼리는 Drizzle ORM 파라미터 바인딩을 통해서만 수행 (raw SQL 금지)
+- XSS 방지: React 자동 이스케이핑 사용, 사용자 입력값은 Zod로 검증 후 처리
+- 통신 암호화: 전 구간 HTTPS 적용 (Vercel 기본 제공)
+- 민감 정보 비노출: DB 연결 정보 등 환경 변수는 코드/저장소에 포함하지 않고 Vercel Dashboard에서 관리
 
 ---
 
