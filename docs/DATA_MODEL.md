@@ -9,9 +9,54 @@
 
 ### MVP: 단일 엔티티
 
+```
+┌──────────────────────────────────────────────────┐
+│                      tickets                      │
+├──────────────────────────────────────────────────┤
+│ id                  SERIAL       PK               │
+│ title               VARCHAR(200) NOT NULL         │
+│ description         TEXT         NULLABLE         │
+│ status              VARCHAR(20)  NOT NULL         │
+│ priority            VARCHAR(10)  NOT NULL         │
+│ position            INTEGER      NOT NULL         │
+│ planned_start_date  DATE         NULLABLE         │
+│ due_date            DATE         NULLABLE         │
+│ started_at          TIMESTAMP    NULLABLE         │
+│ completed_at        TIMESTAMP    NULLABLE         │
+│ created_at          TIMESTAMP    NOT NULL         │
+│ updated_at          TIMESTAMP    NOT NULL         │
+└──────────────────────────────────────────────────┘
+```
+
+> MVP는 단일 사용자이므로 User 테이블 없이 tickets 테이블만 사용한다.
+> 2차에서 Google OAuth 도입 시 users 테이블을 추가하고 tickets에 user_id FK를 연결한다.
+
 ---
 
 ### 2차 확장 예상 ERD
+```
+┌──────────────┐       ┌─────────────────┐
+│    users     │       │    tickets      │
+├──────────────┤       ├─────────────────┤
+│ id       PK  │──1:N─▶│ user_id    FK   │
+│ email        │       │ id         PK   │
+│ name         │       │ title           │
+│ avatar_url   │       │ ...             │
+│ created_at   │       └─────────────────┘
+└──────────────┘
+                        ┌─────────────────┐
+                        │    columns      │
+                        ├─────────────────┤
+                        │ id         PK   │
+                        │ name            │
+                        │ position        │
+                        │ board_id   FK   │
+                        └─────────────────┘
+```
+
+> ⚠️ 추가 검토 필요: `columns.board_id`가 참조할 `boards` 테이블이 아직 다이어그램에 없음.
+> 또한 `tickets`가 기존 `status`(VARCHAR) 방식에서 `columns` 참조 방식(예: `tickets.column_id FK`)으로 전환되는지,
+> 두 방식이 병행되는지 관계가 명확하지 않음. 2차 스펙 논의 시 확정 필요.
 
 ---
 
