@@ -210,7 +210,7 @@
 - 맨 뒤 삽입: 마지막 카드의 position + 1024
 
 **비즈니스 로직**:
-- TODO로 이동 시: startedAt = 현재 시각
+- TODO 또는 IN_PROGRESS로 이동 시, 기존 startedAt이 null이면: startedAt = 현재 시각 (TODO를 거치지 않고 IN_PROGRESS로 직접 이동해도 동일하게 적용)
 - TODO에서 BACKLOG로 이동 시: startedAt = null
 - DONE에서 다른 칼럼(BACKLOG, TODO, IN_PROGRESS)으로 이동 시: completedAt = null (FR-005 참조)
 

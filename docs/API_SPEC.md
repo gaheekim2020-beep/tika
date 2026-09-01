@@ -61,7 +61,7 @@
   "plannedStartDate": "2026-09-01 | null",
   "dueDate": "2026-09-10 | null",
   "startedAt": "2026-09-01T00:00:00.000Z | null",
-  "completedAt": "null",
+  "completedAt": "2026-09-01T00:00:00.000Z | null",
   "createdAt": "2026-09-01T00:00:00.000Z",
   "updatedAt": "2026-09-01T00:00:00.000Z",
   "isOverdue": false
@@ -360,7 +360,7 @@
   - 맨 앞 삽입: 첫 번째 카드의 position - 1024
   - 맨 뒤 삽입: 마지막 카드의 position + 1024
 - **비즈니스 로직**:
-  - `TODO`로 이동 시: `startedAt` = 현재 시각
+  - `TODO` 또는 `IN_PROGRESS`로 이동 시, 기존 `startedAt`이 `null`이면: `startedAt` = 현재 시각 (`TODO`를 거치지 않고 `IN_PROGRESS`로 직접 이동해도 동일하게 적용, 이미 설정된 값은 덮어쓰지 않음)
   - `TODO`에서 `BACKLOG`로 이동 시: `startedAt` = `null`
   - `DONE`에서 다른 칼럼(`BACKLOG`, `TODO`, `IN_PROGRESS`)으로 이동 시: `completedAt` = `null`
 

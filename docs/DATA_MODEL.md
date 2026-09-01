@@ -290,12 +290,13 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 
 | 이동 | 처리 | 근거 |
 |------|------|------|
-| 어느 칼럼 → `TODO` | `startedAt` = 현재 시각 | FR-007 |
+| 어느 칼럼 → `TODO` 또는 `IN_PROGRESS` (기존 `startedAt`이 `null`인 경우) | `startedAt` = 현재 시각 | FR-007 |
+| 이미 `startedAt`이 설정된 티켓이 `TODO`/`IN_PROGRESS` 간 이동 | `startedAt` 변경 없음 (최초 시작 시각 보존) | FR-007 |
 | `TODO` → `BACKLOG` | `startedAt` = `null` | FR-007 |
 | 그 외 이동 | `startedAt` 변경 없음 | FR-007 |
 
 - `startedAt`은 `PATCH /api/tickets/reorder` (FR-007)에서만 갱신된다. 생성(FR-001), 수정(FR-004), 완료(FR-005) API는 이 필드를 건드리지 않는다.
-- `TODO`를 다시 거치지 않고 `IN_PROGRESS`로 직접 이동하는 경우 `startedAt`은 변경되지 않는다 — "TODO로 이동 시"라는 조건에만 해당하기 때문이다.
+- `TODO`를 거치지 않고 `IN_PROGRESS`로 직접 이동하는 경우에도 `startedAt`이 `null`이었다면 현재 시각으로 설정된다 — "작업을 실제로 시작한 시점"이라는 의미에 `TODO`와 `IN_PROGRESS` 둘 다 해당하기 때문이다. 이미 `TODO`를 거쳐 `startedAt`이 설정된 티켓이 `IN_PROGRESS`로 넘어갈 때는 기존 값을 덮어쓰지 않는다.
 
 ### 5.2 완료 처리 자동화 (`completedAt`)
 
@@ -313,7 +314,7 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 
 - **판정식**: `isOverdue = (status !== 'DONE') && (dueDate !== null) && (dueDate < now)`
 - DB 컬럼으로 저장하지 않는 파생 필드다. `idx_tickets_due_date` 인덱스는 이 판정을 위한 조회를 지원하기 위한 것이지, 판정 결과 자체를 저장하기 위한 것이 아니다.
-- 적용 대상 응답: `GET /api/tickets`(FR-002), `GET /api/tickets/:id`(FR-003), `PATCH /api/tickets/:id`(FR-004), `PATCH /api/tickets/reorder`(FR-007). `POST /api/tickets`(FR-001)는 생성 직후 응답에도 동일 규칙을 적용해 `isOverdue`를 포함한다.
+- 적용 대상 응답: `GET /api/tickets`(FR-002), `GET /api/tickets/:id`(FR-003), `PATCH /api/tickets/:id`(FR-004), `PATCH /api/tickets/:id/complete`(FR-005), `PATCH /api/tickets/reorder`(FR-007). `POST /api/tickets`(FR-001)는 생성 직후 응답에도 동일 규칙을 적용해 `isOverdue`를 포함한다.
 - `status === 'DONE'`이거나 `dueDate === null`이면 무조건 `false`이며, 이 두 조건이 `dueDate < now` 비교보다 우선 평가된다.
 - 프론트엔드에서도 동일한 판정식으로 클라이언트 사이드 재연산이 가능하다 (실시간 표시 목적, 서버 재조회 없이).
 
