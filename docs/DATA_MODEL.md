@@ -354,77 +354,88 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 개발 및 데모용 초기 데이터:
 
 ```typescript
+import { TICKET_STATUS, TICKET_PRIORITY } from '@/shared/types';
+
+// 오늘 날짜 기준 상대 날짜(YYYY-MM-DD)를 만드는 헬퍼.
+// 시드를 언제 실행하든 오버듀(FR-008)/Done 24시간 필터(FR-005) 규칙이 의도대로 시연되도록
+// 절대 날짜 대신 상대 날짜를 사용한다.
+const daysFromNow = (offset: number): string => {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0, 10);
+};
+
 const seedTickets = [
   {
     title: '프로젝트 요구사항 정리',
-    status: 'DONE',
-    priority: 'HIGH',
+    status: TICKET_STATUS.DONE,
+    priority: TICKET_PRIORITY.HIGH,
     position: 0,
-    plannedStartDate: '2026-01-20',
-    dueDate: '2026-01-25',
-    startedAt: new Date('2026-01-20T09:00:00+09:00'),
-    completedAt: new Date('2026-01-24T17:00:00+09:00'),
+    plannedStartDate: daysFromNow(-7),
+    dueDate: daysFromNow(-2), // 과거지만 DONE이므로 오버듀 아님 (FR-008)
+    startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3시간 전 시작
+    completedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2시간 전 완료 (24시간 이내 → Done 칼럼에 표시됨)
   },
   {
     title: 'UI 와이어프레임 작성',
-    status: 'DONE',
-    priority: 'MEDIUM',
+    status: TICKET_STATUS.DONE,
+    priority: TICKET_PRIORITY.MEDIUM,
     position: 1024,
-    dueDate: '2026-01-28',
-    startedAt: new Date('2026-01-25T10:00:00+09:00'),
-    completedAt: new Date('2026-01-27T15:00:00+09:00'),
+    dueDate: daysFromNow(-1), // 과거지만 DONE이므로 오버듀 아님 (FR-008)
+    startedAt: new Date(Date.now() - 20 * 60 * 60 * 1000), // 20시간 전 시작
+    completedAt: new Date(Date.now() - 18 * 60 * 60 * 1000), // 18시간 전 완료 (24시간 이내 → Done 칼럼에 표시됨)
   },
   {
     title: 'API 설계 문서 작성',
-    status: 'IN_PROGRESS',
-    priority: 'HIGH',
+    status: TICKET_STATUS.IN_PROGRESS,
+    priority: TICKET_PRIORITY.HIGH,
     position: 0,
-    dueDate: '2026-02-05',
-    startedAt: new Date('2026-01-28T09:00:00+09:00'),
+    dueDate: daysFromNow(-3), // 과거 + IN_PROGRESS → 오버듀 시연
+    startedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000), // 4일 전 시작
   },
   {
     title: 'DB 스키마 설계',
-    status: 'IN_PROGRESS',
-    priority: 'MEDIUM',
+    status: TICKET_STATUS.IN_PROGRESS,
+    priority: TICKET_PRIORITY.MEDIUM,
     position: 1024,
-    plannedStartDate: '2026-01-30',
-    dueDate: '2026-02-07',
-    startedAt: new Date('2026-01-30T10:00:00+09:00'),
+    plannedStartDate: daysFromNow(-2),
+    dueDate: daysFromNow(6), // 미래 → 정상(비오버듀) 케이스
+    startedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2일 전 시작
   },
   {
     title: '로그인 페이지 구현',
-    status: 'TODO',
-    priority: 'HIGH',
+    status: TICKET_STATUS.TODO,
+    priority: TICKET_PRIORITY.HIGH,
     position: 0,
-    plannedStartDate: '2026-02-03',
-    dueDate: '2026-02-10',
-    startedAt: new Date('2026-02-01T09:00:00+09:00'),
+    plannedStartDate: daysFromNow(1),
+    dueDate: daysFromNow(3), // 미래 → 정상(비오버듀) 케이스
+    startedAt: new Date(Date.now() - 30 * 60 * 1000), // 30분 전 시작
   },
   {
     title: '대시보드 레이아웃',
-    status: 'TODO',
-    priority: 'MEDIUM',
+    status: TICKET_STATUS.TODO,
+    priority: TICKET_PRIORITY.MEDIUM,
     position: 1024,
-    dueDate: '2026-02-14',
-    startedAt: new Date('2026-02-01T14:00:00+09:00'),
+    dueDate: daysFromNow(-1), // 과거 + TODO → 오버듀 시연
+    startedAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6시간 전 시작
   },
   {
     title: '알림 기능 조사',
-    status: 'BACKLOG',
-    priority: 'LOW',
+    status: TICKET_STATUS.BACKLOG,
+    priority: TICKET_PRIORITY.LOW,
     position: 0,
   },
   {
     title: '성능 테스트 계획',
-    status: 'BACKLOG',
-    priority: 'MEDIUM',
+    status: TICKET_STATUS.BACKLOG,
+    priority: TICKET_PRIORITY.MEDIUM,
     position: 1024,
-    plannedStartDate: '2026-02-17',
+    plannedStartDate: daysFromNow(14),
   },
   {
     title: 'CI/CD 파이프라인 구축',
-    status: 'BACKLOG',
-    priority: 'LOW',
+    status: TICKET_STATUS.BACKLOG,
+    priority: TICKET_PRIORITY.LOW,
     position: 2048,
   },
 ];
