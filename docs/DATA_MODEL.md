@@ -348,3 +348,84 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 - 상태(`status`)와 `position`은 항상 함께, 트랜잭션으로 갱신된다 (FR-007) — 둘 중 하나만 반영되는 중간 상태는 허용되지 않는다.
 
 ---
+
+## 6. 시드 데이터
+
+개발 및 데모용 초기 데이터:
+
+```typescript
+const seedTickets = [
+  {
+    title: '프로젝트 요구사항 정리',
+    status: 'DONE',
+    priority: 'HIGH',
+    position: 0,
+    plannedStartDate: '2026-01-20',
+    dueDate: '2026-01-25',
+    startedAt: new Date('2026-01-20T09:00:00+09:00'),
+    completedAt: new Date('2026-01-24T17:00:00+09:00'),
+  },
+  {
+    title: 'UI 와이어프레임 작성',
+    status: 'DONE',
+    priority: 'MEDIUM',
+    position: 1024,
+    dueDate: '2026-01-28',
+    startedAt: new Date('2026-01-25T10:00:00+09:00'),
+    completedAt: new Date('2026-01-27T15:00:00+09:00'),
+  },
+  {
+    title: 'API 설계 문서 작성',
+    status: 'IN_PROGRESS',
+    priority: 'HIGH',
+    position: 0,
+    dueDate: '2026-02-05',
+    startedAt: new Date('2026-01-28T09:00:00+09:00'),
+  },
+  {
+    title: 'DB 스키마 설계',
+    status: 'IN_PROGRESS',
+    priority: 'MEDIUM',
+    position: 1024,
+    plannedStartDate: '2026-01-30',
+    dueDate: '2026-02-07',
+    startedAt: new Date('2026-01-30T10:00:00+09:00'),
+  },
+  {
+    title: '로그인 페이지 구현',
+    status: 'TODO',
+    priority: 'HIGH',
+    position: 0,
+    plannedStartDate: '2026-02-03',
+    dueDate: '2026-02-10',
+    startedAt: new Date('2026-02-01T09:00:00+09:00'),
+  },
+  {
+    title: '대시보드 레이아웃',
+    status: 'TODO',
+    priority: 'MEDIUM',
+    position: 1024,
+    dueDate: '2026-02-14',
+    startedAt: new Date('2026-02-01T14:00:00+09:00'),
+  },
+  {
+    title: '알림 기능 조사',
+    status: 'BACKLOG',
+    priority: 'LOW',
+    position: 0,
+  },
+  {
+    title: '성능 테스트 계획',
+    status: 'BACKLOG',
+    priority: 'MEDIUM',
+    position: 1024,
+    plannedStartDate: '2026-02-17',
+  },
+  {
+    title: 'CI/CD 파이프라인 구축',
+    status: 'BACKLOG',
+    priority: 'LOW',
+    position: 2048,
+  },
+];
+```
