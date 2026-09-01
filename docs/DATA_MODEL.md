@@ -152,8 +152,8 @@ export const tickets = pgTable(
   ]
 );
 
-export type Ticket = typeof tickets.$inferSelect;
-export type NewTicket = typeof tickets.$inferInsert;
+export type TicketRow = typeof tickets.$inferSelect;
+export type NewTicketRow = typeof tickets.$inferInsert;
 ```
 
 ### 설계 노트
@@ -163,12 +163,120 @@ export type NewTicket = typeof tickets.$inferInsert;
 - **모든 날짜/시각 필드에 `{ mode: 'date' }`**: Drizzle의 `date()`/`timestamp()` 기본 반환 모드는 `string`이다. `mode: 'date'`를 명시해야 조회 결과가 JS `Date` 객체로 반환되며, FR-008 오버듀 판정(`dueDate < now`)처럼 날짜를 직접 비교하는 서비스 로직에서 문자열-Date 간 변환 실수 없이 일관되게 다룰 수 있다.
 - **`updatedAt`에 `$onUpdate`**: UPDATE 쿼리마다 서비스 코드에서 `updatedAt: new Date()`를 매번 명시하지 않아도, Drizzle이 해당 로우가 갱신될 때 자동으로 현재 시각을 채운다. FR-004/FR-005/FR-007의 "수정/완료/재정렬 시 updatedAt 자동 갱신" 규칙을 스키마 레벨에서 보장해 누락을 방지한다.
 - **인덱스는 복합 인덱스 1개 + 단일 인덱스 2개**: `(status, position)`은 보드 조회(`GET /api/tickets`)가 항상 "칼럼별로 묶고 position 순 정렬"하는 패턴이므로 복합 인덱스로 커버한다. `due_date`, `completed_at`은 각각 오버듀 판정과 Done 24시간 필터에 단독으로 쓰이므로 별도 인덱스로 둔다.
-- **`$inferSelect` / `$inferInsert`**: Drizzle이 스키마로부터 자동 추론한 타입이다. `src/shared/types`에서 API 요청/응답 타입을 별도로 정의할 때 이 타입을 가공(Pick/Omit)해서 파생시키면 DB 스키마와 타입이 어긋나지 않는다.
+- **`$inferSelect` / `$inferInsert`**: Drizzle이 스키마로부터 자동 추론한 DB row 타입이다(`TicketRow`/`NewTicketRow`). 이 타입은 `src/server/db/schema.ts`(백엔드 전용) 밖으로 내보내지 않는다 — `src/shared/types`의 API 계약 타입(아래 "4. TypeScript 타입 정의"의 `Ticket`)은 이 타입에서 파생시키지 않고 독립적으로 선언한다. `src/shared/types`가 Drizzle 스키마에 의존하면 프론트엔드(`src/client`)가 DB 구현에 간접 결합되어 CLAUDE.md의 프론트/백엔드 경계 규칙에 어긋나기 때문이다. 이름도 `Ticket`(shared, API 계약)과 `TicketRow`(server, DB row)로 구분한다.
 - **`position` 기본값 `1`**: FR-001/FR-005의 "칼럼에 티켓이 없으면 position = 1024" 규칙은 애플리케이션(서비스 레이어)에서 계산해 명시적으로 삽입하는 값이며, 컬럼 기본값 `1`은 그 계산 로직을 거치지 않는 직접 INSERT(시드 데이터 등) 상황을 위한 안전값이다.
 - **`raw SQL` 미사용**: CLAUDE.md 규칙("DB 쿼리는 Drizzle ORM으로만 작성, raw SQL 금지")에 따라 인덱스 정의도 `drizzle-orm/pg-core`의 `index()` 빌더만 사용했다.
 
 ### 마이그레이션 반영
 
 스키마 정의 후에는 `npm run db:generate`로 마이그레이션 파일을 생성하고, `npm run db:migrate`로 실제 DB에 반영한다.
+
+---
+
+## 4. TypeScript 타입 정의
+
+> 파일 위치: `src/shared/types/index.ts`
+> API_SPEC.md의 요청/응답 필드를 단일 진실 공급원으로 삼아 독립적으로 선언한다 (Drizzle 스키마에서 파생시키지 않음).
+> 프론트엔드(`src/client`)와 백엔드(`app/api`, `src/server`)가 이 파일을 공유해서 import한다 (CLAUDE.md 규칙).
+> `src/shared/`는 `src/server/db/schema`(Drizzle, 3번 섹션)를 import하지 않는다 — DB row 타입(`TicketRow`)과 API 계약 타입(`Ticket`)을 분리해 프론트/백엔드 경계를 지킨다.
+
+```typescript
+// --- 상태 및 우선순위 ---
+export const TICKET_STATUS = {
+  BACKLOG: 'BACKLOG',
+  TODO: 'TODO',
+  IN_PROGRESS: 'IN_PROGRESS',
+  DONE: 'DONE',
+} as const;
+
+export type TicketStatus = (typeof TICKET_STATUS)[keyof typeof TICKET_STATUS];
+
+export const TICKET_PRIORITY = {
+  LOW: 'LOW',
+  MEDIUM: 'MEDIUM',
+  HIGH: 'HIGH',
+} as const;
+
+export type TicketPriority = (typeof TICKET_PRIORITY)[keyof typeof TICKET_PRIORITY];
+
+// --- 칼럼 순서 정의 ---
+export const COLUMN_ORDER: TicketStatus[] = [
+  TICKET_STATUS.BACKLOG,
+  TICKET_STATUS.TODO,
+  TICKET_STATUS.IN_PROGRESS,
+  TICKET_STATUS.DONE,
+];
+
+export const COLUMN_LABELS: Record<TicketStatus, string> = {
+  BACKLOG: 'Backlog',
+  TODO: 'TODO',
+  IN_PROGRESS: 'In Progress',
+  DONE: 'Done',
+};
+
+// --- 티켓 타입 ---
+export interface Ticket {
+  id: number;
+  title: string;
+  description: string | null;
+  status: TicketStatus;
+  priority: TicketPriority;
+  position: number;
+  plannedStartDate: string | null;  // ISO 8601 date (YYYY-MM-DD), 시작예정일
+  dueDate: string | null;           // ISO 8601 date (YYYY-MM-DD), 종료예정일
+  startedAt: Date | null;           // 시작일 (TODO 이동 시 시스템 설정)
+  completedAt: Date | null;         // 종료일 (Done 이동 시 시스템 설정)
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// 파생 필드 포함 (보드 조회 응답용)
+export interface TicketWithMeta extends Ticket {
+  isOverdue: boolean;               // dueDate < today && status !== DONE
+}
+
+// --- API 요청 타입 ---
+
+// POST /api/tickets
+export interface CreateTicketInput {
+  title: string;
+  description?: string;
+  priority?: TicketPriority;
+  plannedStartDate?: string;        // YYYY-MM-DD
+  dueDate?: string;                 // YYYY-MM-DD
+}
+
+// PATCH /api/tickets/:id
+export interface UpdateTicketInput {
+  title?: string;
+  description?: string | null;
+  priority?: TicketPriority;
+  plannedStartDate?: string | null;
+  dueDate?: string | null;
+}
+
+// PATCH /api/tickets/reorder
+// DONE은 허용하지 않음 — Done 이동은 PATCH /api/tickets/:id/complete 사용
+export type ReorderableStatus = Exclude<TicketStatus, typeof TICKET_STATUS.DONE>;
+
+export interface ReorderTicketInput {
+  ticketId: number;
+  status: ReorderableStatus;        // BACKLOG | TODO | IN_PROGRESS (DONE 제외)
+  position: number;
+}
+
+// --- 보드 데이터 구조 ---
+export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
+```
+
+### 설계 노트
+
+- **DB 스키마가 아닌 API_SPEC.md를 단일 진실 공급원으로 삼음**: `Ticket`은 Drizzle의 `$inferSelect`(`TicketRow`, 3번 섹션 참조)에서 파생시키지 않고 API 응답 필드를 그대로 선언한다. `src/shared/types`가 `src/server/db/schema`를 import하면 프론트엔드가 DB 구현에 간접 결합되어 CLAUDE.md의 "src/client에서 직접 DB 접근 금지"라는 경계 규칙의 취지에 어긋나기 때문이다. DB↔API 간 필드 변환(뒤에서 설명)은 서비스 레이어가 책임진다.
+- **`plannedStartDate`/`dueDate`는 `string`, `startedAt`/`completedAt`/`createdAt`/`updatedAt`은 `Date`**: DB 저장 형식과 달리, API 계약 타입에서는 두 그룹이 다르게 취급된다. 사용자가 입력/표시하는 날짜 전용 필드(`plannedStartDate`, `dueDate`)는 시각 정보가 없는 `YYYY-MM-DD` 문자열로 유지하고, 시스템이 기록하는 타임스탬프(`startedAt`, `completedAt`, `createdAt`, `updatedAt`)는 `Date`로 다룬다. 후자는 실제 JSON 응답에서는 ISO 문자열로 직렬화되므로, 프론트엔드에서 수신 시 `new Date(...)`로 파싱하는 것을 전제로 한다.
+- **`enum` 대신 `const` 객체**: CLAUDE.md 컨벤션에 따라 TypeScript `enum` 대신 `as const` 객체 + `typeof` 패턴을 사용했다.
+- **`COLUMN_ORDER`/`COLUMN_LABELS`**: 보드를 4칼럼으로 렌더링할 때(FR-002, US-003) 필요한 순서·라벨 상수다. 컴포넌트별 세부 UI는 COMPONENT_SPEC.md(작성 예정)에서 다루지만, `status` 값과 1:1로 묶이는 상수라 `TICKET_STATUS` 바로 옆에 두어 하나의 소스에서 관리한다.
+- **`CreateTicketInput`/`UpdateTicketInput`을 API_SPEC.md 요청 필드에서 직접 선언**: DB 컬럼을 `Pick`하지 않고 API_SPEC.md의 "입력 필드" 표를 그대로 옮긴다. `status`, `position`, `startedAt`, `completedAt`, `id`, `createdAt`, `updatedAt`은 서버가 계산/설정하므로 애초에 이 타입에 존재하지 않는다(FR-001, FR-004).
+- **`ReorderTicketInput.status`에서 `DONE` 제외**: FR-007 규칙("DONE은 허용하지 않는다")을 `ReorderableStatus = Exclude<TicketStatus, typeof TICKET_STATUS.DONE>` 타입으로 강제한다. `DONE` 이동은 별도 API(`/complete`)를 사용하므로 이 타입에 값이 들어올 수 없다.
+- **실제 Zod 스키마와의 관계**: 이 타입들은 `src/shared/validations/ticket.ts`의 Zod 스키마(`z.infer<typeof createTicketSchema>` 등)로 대체/검증될 수 있다. 구현 단계에서는 Zod 스키마를 우선 정의하고 이 타입들을 `z.infer`로 대체하는 방식도 가능하다 — 어떤 방식을 취하든 API_SPEC.md의 요청/응답 필드와 반드시 일치해야 한다.
 
 ---
