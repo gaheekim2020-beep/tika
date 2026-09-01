@@ -303,9 +303,11 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 |------|------|------|
 | 어느 칼럼 → `DONE` | `status` = `DONE`, `completedAt` = 현재 시각, `position` = Done 칼럼 최솟값 - 1024 | FR-005 (`PATCH /api/tickets/:id/complete`) |
 | `DONE` → 다른 칼럼(`BACKLOG`/`TODO`/`IN_PROGRESS`) | `completedAt` = `null` | FR-007 (`PATCH /api/tickets/reorder`) |
+| `DONE`이 아닌 칼럼 간 이동 (예: `BACKLOG`↔`TODO`↔`IN_PROGRESS`) | `completedAt` 변경 없음 | FR-007 |
 
 - `DONE` 진입과 `DONE` 이탈은 서로 다른 API가 처리한다: 진입은 `/complete`(FR-005), 이탈은 `/reorder`(FR-007). `/reorder`는 `status`에 `DONE`을 허용하지 않으므로 두 API가 겹치지 않는다.
 - `DONE`에 재진입할 때마다 `completedAt`은 새 현재 시각으로 갱신된다 (기존 값을 유지하지 않음).
+- `/reorder`(FR-007)가 다루는 세 칼럼(`BACKLOG`/`TODO`/`IN_PROGRESS`) 사이의 이동은 애초에 `completedAt`이 `null`인 상태에서만 발생한다 (`DONE`을 거치지 않았다면 `completedAt`이 설정된 적이 없으므로). 따라서 이 경우 `completedAt`은 항상 `null`로 유지된다.
 
 ### 5.3 오버듀(Overdue) 판정 (`isOverdue`)
 
