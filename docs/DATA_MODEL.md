@@ -280,3 +280,69 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 - **실제 Zod 스키마와의 관계**: 이 타입들은 `src/shared/validations/ticket.ts`의 Zod 스키마(`z.infer<typeof createTicketSchema>` 등)로 대체/검증될 수 있다. 구현 단계에서는 Zod 스키마를 우선 정의하고 이 타입들을 `z.infer`로 대체하는 방식도 가능하다 — 어떤 방식을 취하든 API_SPEC.md의 요청/응답 필드와 반드시 일치해야 한다.
 
 ---
+
+## 5. 비즈니스 규칙
+
+> REQUIREMENTS.md(FR-001~008)에 흩어져 있는 자동화·판정 규칙 중 데이터 모델에 직접 영향을 주는 것들을 한곳에 모은다.
+> 각 항목의 최종 근거는 REQUIREMENTS.md이며, 이 섹션은 데이터 관점에서 빠르게 참조하기 위한 요약이다.
+
+### 5.1 시작 처리 자동화 (`startedAt`)
+
+| 이동 | 처리 | 근거 |
+|------|------|------|
+| 어느 칼럼 → `TODO` | `startedAt` = 현재 시각 | FR-007 |
+| `TODO` → `BACKLOG` | `startedAt` = `null` | FR-007 |
+| 그 외 이동 | `startedAt` 변경 없음 | FR-007 |
+
+- `startedAt`은 `PATCH /api/tickets/reorder` (FR-007)에서만 갱신된다. 생성(FR-001), 수정(FR-004), 완료(FR-005) API는 이 필드를 건드리지 않는다.
+- `TODO`를 다시 거치지 않고 `IN_PROGRESS`로 직접 이동하는 경우 `startedAt`은 변경되지 않는다 — "TODO로 이동 시"라는 조건에만 해당하기 때문이다.
+
+### 5.2 완료 처리 자동화 (`completedAt`)
+
+| 이동 | 처리 | 근거 |
+|------|------|------|
+| 어느 칼럼 → `DONE` | `status` = `DONE`, `completedAt` = 현재 시각, `position` = Done 칼럼 최솟값 - 1024 | FR-005 (`PATCH /api/tickets/:id/complete`) |
+| `DONE` → 다른 칼럼(`BACKLOG`/`TODO`/`IN_PROGRESS`) | `completedAt` = `null` | FR-007 (`PATCH /api/tickets/reorder`) |
+
+- `DONE` 진입과 `DONE` 이탈은 서로 다른 API가 처리한다: 진입은 `/complete`(FR-005), 이탈은 `/reorder`(FR-007). `/reorder`는 `status`에 `DONE`을 허용하지 않으므로 두 API가 겹치지 않는다.
+- `DONE`에 재진입할 때마다 `completedAt`은 새 현재 시각으로 갱신된다 (기존 값을 유지하지 않음).
+
+### 5.3 오버듀(Overdue) 판정 (`isOverdue`)
+
+- **판정식**: `isOverdue = (status !== 'DONE') && (dueDate !== null) && (dueDate < now)`
+- DB 컬럼으로 저장하지 않는 파생 필드다. `idx_tickets_due_date` 인덱스는 이 판정을 위한 조회를 지원하기 위한 것이지, 판정 결과 자체를 저장하기 위한 것이 아니다.
+- 적용 대상 응답: `GET /api/tickets`(FR-002), `GET /api/tickets/:id`(FR-003), `PATCH /api/tickets/:id`(FR-004), `PATCH /api/tickets/reorder`(FR-007). `POST /api/tickets`(FR-001)는 생성 직후 응답에도 동일 규칙을 적용해 `isOverdue`를 포함한다.
+- `status === 'DONE'`이거나 `dueDate === null`이면 무조건 `false`이며, 이 두 조건이 `dueDate < now` 비교보다 우선 평가된다.
+- 프론트엔드에서도 동일한 판정식으로 클라이언트 사이드 재연산이 가능하다 (실시간 표시 목적, 서버 재조회 없이).
+
+### 5.4 Done 칼럼 24시간 필터
+
+- Done 칼럼에는 `completedAt` 기준 **현재 시각으로부터 24시간 이내**에 완료된 티켓만 표시한다 (FR-005).
+- 이 필터는 `status = 'DONE'`인 모든 행에 적용되는 게 아니라 `GET /api/tickets`(FR-002)의 **조회 시점 필터링**이다 — 24시간이 지난 DONE 티켓은 삭제되거나 상태가 바뀌는 것이 아니라, 단지 보드 응답에서 제외될 뿐이다.
+- `idx_tickets_completed_at` 인덱스는 이 조회(`WHERE status = 'DONE' AND completed_at > now() - interval '24 hours'`)를 지원한다.
+- 24시간이 지나 보드에서 사라진 DONE 티켓도 `GET /api/tickets/:id`(FR-003)로 단건 조회하면 여전히 확인 가능하다 (하드 삭제되지 않으므로).
+
+### 5.5 Position 관리
+
+**정렬 방향**: 모든 칼럼은 `position` **오름차순**으로 정렬되며, 작은 값일수록 칼럼 상단에 표시된다.
+
+**신규 배치 규칙**:
+| 상황 | position 계산 | 근거 |
+|------|------|------|
+| 티켓 생성 (`BACKLOG`) | 해당 칼럼 최솟값 - 1024 (맨 위) | FR-001 |
+| 완료 처리 (`DONE` 진입) | 해당 칼럼 최솟값 - 1024 (맨 위) | FR-005 |
+| 칼럼에 티켓이 없는 경우 | `1024` | FR-001, FR-005 |
+
+**드래그앤드롭 재계산 로직** (FR-007, `PATCH /api/tickets/reorder`):
+| 삽입 위치 | 계산식 |
+|------|------|
+| 두 카드 사이 | `(prev.position + next.position) / 2` |
+| 맨 앞 | `첫 번째 카드.position - 1024` |
+| 맨 뒤 | `마지막 카드.position + 1024` |
+| 간격이 1 미만 | 해당 칼럼 전체를 `1024` 간격으로 재정렬 |
+
+- `position`은 `INTEGER`이므로 두 정수 사이 삽입을 무한히 반복하면 간격이 1 미만으로 좁아질 수 있다 — 이때 전체 재정렬이 트리거된다.
+- 재정렬은 상태 이동이 발생한 해당 칼럼 내에서만 일어나며, 다른 칼럼의 `position` 값에는 영향을 주지 않는다.
+- 상태(`status`)와 `position`은 항상 함께, 트랜잭션으로 갱신된다 (FR-007) — 둘 중 하나만 반영되는 중간 상태는 허용되지 않는다.
+
+---
