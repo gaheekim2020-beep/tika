@@ -24,7 +24,7 @@
 
 **처리 규칙**:
 - 생성 시 status는 항상 BACKLOG
-- 생성 시 position은 해당 칼럼의 최댓값 + 1024 (맨 위 배치)
+- 생성 시 position은 해당 칼럼의 최솟값 - 1024 (맨 위 배치, `position` 오름차순 정렬 기준)
 - 칼럼에 티켓이 없을 경우 position = 1024
 - createdAt, updatedAt 자동 설정
 
@@ -142,10 +142,12 @@
 
 **처리 규칙**:
 - DONE으로 이동 시: `completedAt` = 현재 시각(`now`), `status` = `DONE`
-- DONE에서 다른 칼럼으로 이동 시: `completedAt` = `null`
+- DONE으로 이동 시 position은 Done 칼럼의 최솟값 - 1024 (맨 위 배치, 칼럼에 티켓이 없으면 1024)
 - Done 칼럼에는 `completedAt` 기준 24시간 이내 완료된 티켓만 표시
 - 완료 처리 시 `status == 'DONE'`이 되므로 `isOverdue` 파생 필드는 `false`로 연산되어 반환
 - 수정 완료 시 `updatedAt` 필드를 현재 시각으로 자동 갱신
+
+> DONE에서 다른 칼럼으로 이동 시 `completedAt = null` 처리는 FR-007(`PATCH /api/tickets/reorder`)에서 규정한다. 본 API(`/complete`)는 DONE 진입만 처리한다.
 
 **검증 에러 메시지**:
 | 조건 | 메시지 |
@@ -170,7 +172,7 @@
 **처리 규칙**:
 - 요청받은 ID의 티켓이 존재하지 않을 경우 `404 Not Found` 응답
 - 존재할 경우 해당 티켓 데이터 레코드를 데이터베이스에서 완전히 삭제
-- 삭제 처리 완료 시 200 OK 응답과 성공 메시지 반환
+- 삭제 처리 완료 시 204 No Content 응답
 
 **검증 에러 메시지**:
 | 조건 | 메시지 |
@@ -178,7 +180,7 @@
 | ID 형식 오류 | "유효하지 않은 티켓 ID입니다" |
 | 존재하지 않는 티켓 | "존재하지 않는 티켓입니다" |
 
-**성공 응답**: 200 OK + `{ "message": "티켓이 성공적으로 삭제되었습니다." }`  
+**성공 응답**: 204 No Content (본문 없음)  
 **실패 응답**: 400 Bad Request (형식 오류) / 404 Not Found (존재하지 않는 티켓) + 에러 상세
 
 ---
@@ -210,6 +212,7 @@
 **비즈니스 로직**:
 - TODO로 이동 시: startedAt = 현재 시각
 - TODO에서 BACKLOG로 이동 시: startedAt = null
+- DONE에서 다른 칼럼(BACKLOG, TODO, IN_PROGRESS)으로 이동 시: completedAt = null (FR-005 참조)
 
 **검증 에러 메시지**:
 | 조건 | 메시지 |
