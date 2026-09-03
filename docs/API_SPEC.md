@@ -21,10 +21,12 @@
 {
   "error": {
     "code": "STRING_CODE",
-    "message": "사용자에게 보여줄 메시지"
+    "message": "사용자에게 보여줄 메시지",
+    "field": "필드명 (선택, VALIDATION_ERROR에서 특정 필드 식별 가능한 경우)"
   }
 }
 ```
+`field`는 `VALIDATION_ERROR`가 단일 필드에 대한 검증 실패일 때만 포함한다 (예: `"title"`, `"dueDate"`). 여러 필드가 동시에 실패하거나 필드 단위로 특정할 수 없는 경우 생략한다. 프론트엔드는 `field`가 있으면 해당 입력 필드 아래에, 없으면 폼 상단에 `message`를 표시한다 (COMPONENT_SPEC.md §6.2 `TicketForm` 참조).
 
 ### 공통 HTTP 상태 코드
 | 상태 코드 | 의미 | 사용 시점 |
@@ -124,13 +126,13 @@
 ```
 
 **400 Bad Request**
-| 조건 | code | message |
-|------|------|---------|
-| 제목 누락/공백만 입력 | VALIDATION_ERROR | 제목을 입력해주세요 |
-| 제목 200자 초과 | VALIDATION_ERROR | 제목은 200자 이내로 입력해주세요 |
-| 설명 1000자 초과 | VALIDATION_ERROR | 설명은 1000자 이내로 입력해주세요 |
-| 잘못된 우선순위 값 | VALIDATION_ERROR | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
-| 과거 종료예정일 | VALIDATION_ERROR | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
+| 조건 | code | field | message |
+|------|------|------|---------|
+| 제목 누락/공백만 입력 | VALIDATION_ERROR | title | 제목을 입력해주세요 |
+| 제목 200자 초과 | VALIDATION_ERROR | title | 제목은 200자 이내로 입력해주세요 |
+| 설명 1000자 초과 | VALIDATION_ERROR | description | 설명은 1000자 이내로 입력해주세요 |
+| 잘못된 우선순위 값 | VALIDATION_ERROR | priority | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
+| 과거 종료예정일 | VALIDATION_ERROR | dueDate | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
 
 **500 Internal Server Error**
 ```json
@@ -246,13 +248,13 @@
 **200 OK**: 수정된 [공통 Ticket 스키마](#공통-타입-srcsharedtypes-참조)
 
 **400 Bad Request**
-| 조건 | code | message |
-|------|------|---------|
-| 제목 200자 초과 | VALIDATION_ERROR | 제목은 200자 이내로 입력해주세요 |
-| 제목 공백만 입력 | VALIDATION_ERROR | 제목을 입력해주세요 |
-| 설명 1000자 초과 | VALIDATION_ERROR | 설명은 1000자 이내로 입력해주세요 |
-| 잘못된 우선순위 값 | VALIDATION_ERROR | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
-| 과거 종료예정일 | VALIDATION_ERROR | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
+| 조건 | code | field | message |
+|------|------|------|---------|
+| 제목 200자 초과 | VALIDATION_ERROR | title | 제목은 200자 이내로 입력해주세요 |
+| 제목 공백만 입력 | VALIDATION_ERROR | title | 제목을 입력해주세요 |
+| 설명 1000자 초과 | VALIDATION_ERROR | description | 설명은 1000자 이내로 입력해주세요 |
+| 잘못된 우선순위 값 | VALIDATION_ERROR | priority | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
+| 과거 종료예정일 | VALIDATION_ERROR | dueDate | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
 
 **404 Not Found**
 ```json

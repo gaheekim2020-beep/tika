@@ -104,12 +104,32 @@ Next.js App Router는 컴포넌트를 기본적으로 **서버 컴포넌트**로
 
 | dnd-kit 요소 | 배치 위치 | 역할 |
 |------|------|------|
-| `DndContext` | 클라이언트 최상위 컨테이너(예: `BoardContainer`) 1곳에만 배치 | 보드 전체의 드래그 이벤트(`onDragStart`, `onDragEnd`)를 감지한다. 칼럼 간 이동을 포함해 어떤 영역에서 어떤 영역으로든 이동이 가능해야 하므로(US-005), 칼럼별로 분리하지 않고 전체를 하나의 컨텍스트로 감싼다. |
+| `DndContext` | `Board`(§3.4, `BoardContainer`의 자식) 1곳에만 배치 | 보드 전체의 드래그 이벤트(`onDragStart`, `onDragEnd`)를 감지한다. 칼럼 간 이동을 포함해 어떤 영역에서 어떤 영역으로든 이동이 가능해야 하므로(US-005), 칼럼별로 분리하지 않고 전체를 하나의 컨텍스트로 감싼다. `BoardContainer`는 데이터(상태) 소유만 담당하고 dnd-kit 관련 로직을 직접 갖지 않는다 — `Board`가 `onReorder`/`onComplete` prop 호출로 결과만 올려보낸다 (COMPONENT_SPEC.md §1.1 설계 노트 참조). |
 | `SortableContext` | 각 칼럼(Column) 내부 | 같은 칼럼 안에서의 카드 순서 변경(재정렬)을 담당한다. 칼럼마다 별도의 `SortableContext`를 두어 다른 칼럼의 정렬에 영향을 주지 않는다. |
-| `DragOverlay` | `DndContext`와 같은 레벨(최상위 컨테이너) | 드래그 중인 카드의 미리보기를 렌더링한다. 원본 카드 위치와 별개로 포인터를 따라다니는 미리보기이므로 최상위에 1곳만 둔다. |
+| `DragOverlay` | `DndContext`와 같은 레벨(`Board` 내부) | 드래그 중인 카드의 미리보기를 렌더링한다. 원본 카드 위치와 별개로 포인터를 따라다니는 미리보기이므로 `Board`에 1곳만 둔다. 렌더링 대상은 `Board`가 소유한 로컬 상태 `activeId`로 `board`에서 조회한다 (COMPONENT_SPEC.md §3.4). |
 
-- `onDragEnd` 콜백에서 낙관적 업데이트(§3.3) → API 호출 → 실패 시 롤백 흐름을 처리한다.
+- `onDragEnd` 콜백에서 드롭 대상에 따라 `onReorder`/`onComplete` prop을 호출하고, 이를 받은 `BoardContainer`가 `useTickets`의 낙관적 업데이트(§3.3) → API 호출 → 실패 시 롤백 흐름을 수행한다.
 - 키보드 접근성(NFR-003)은 dnd-kit 기본 키보드 센서(`KeyboardSensor`)를 그대로 사용하며, 별도 커스텀 키 매핑을 구현하지 않는다.
+
+**센서(Sensor) 구성**:
+
+```typescript
+const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: { distance: 8 }, // 8px 이상 이동해야 드래그 시작 (클릭과 구분)
+  }),
+  useSensor(TouchSensor, {
+    activationConstraint: { delay: 250, tolerance: 5 }, // 250ms 꾹 누르기 + 5px 이내 흔들림 허용
+  }),
+  useSensor(KeyboardSensor),
+);
+```
+
+| 센서 | 대상 입력 | 설정 | 이유 |
+|------|------|------|------|
+| `PointerSensor` | 마우스, 트랙패드 | `distance: 8` | 클릭(카드 열기)과 드래그 시작을 구분한다. 값이 너무 작으면 클릭이 드래그로 오인식된다. |
+| `TouchSensor` | 모바일 터치 | `delay: 250, tolerance: 5` | §2.3 모바일 브레이크포인트는 4개 칼럼이 세로 스크롤로 배치되므로(COMPONENT_SPEC.md §2.3), 지연 없이 터치를 바로 드래그로 인식하면 스크롤하려는 손가락 움직임이 카드 드래그로 오인식된다. 250ms 이상 눌러야 드래그가 시작되고, 그동안 손가락이 5px 넘게 움직이면(스크롤 의도로 판단) 드래그를 취소하고 일반 스크롤을 허용한다. |
+| `KeyboardSensor` | 키보드 | 기본값 | NFR-003, 위 설명 참조 |
 
 ---
 
