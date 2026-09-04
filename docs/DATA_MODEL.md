@@ -313,6 +313,7 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 ### 5.3 오버듀(Overdue) 판정 (`isOverdue`)
 
 - **판정식**: `isOverdue = (status !== 'DONE') && (dueDate !== null) && (dueDate < now)`
+- 이 판정식은 `status`가 `BACKLOG`/`TODO`/`IN_PROGRESS` 중 무엇이든 동일하게 적용된다 — BACKLOG도 COMPONENT_SPEC.md §1.1 원칙대로 다른 칼럼과 동일한 `Column`이므로, BACKLOG에 있는 티켓도 `dueDate`가 지났다면 동일하게 `isOverdue = true`로 판정되고 카드에 지연 표시가 적용된다.
 - DB 컬럼으로 저장하지 않는 파생 필드다. `idx_tickets_due_date` 인덱스는 이 판정을 위한 조회를 지원하기 위한 것이지, 판정 결과 자체를 저장하기 위한 것이 아니다.
 - 적용 대상 응답: `GET /api/tickets`(FR-002), `GET /api/tickets/:id`(FR-003), `PATCH /api/tickets/:id`(FR-004), `PATCH /api/tickets/:id/complete`(FR-005), `PATCH /api/tickets/reorder`(FR-007). `POST /api/tickets`(FR-001)는 생성 직후 응답에도 동일 규칙을 적용해 `isOverdue`를 포함한다.
 - `status === 'DONE'`이거나 `dueDate === null`이면 무조건 `false`이며, 이 두 조건이 `dueDate < now` 비교보다 우선 평가된다.

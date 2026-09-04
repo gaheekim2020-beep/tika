@@ -323,6 +323,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 - droppable 영역 (dnd-kit) — DONE 칼럼에 대한 드롭은 `PATCH /api/tickets/:id/complete`, 나머지는 `PATCH /api/tickets/reorder` 호출로 분기 (§7)
 - 칼럼 내부에 `SortableContext`(dnd-kit)를 두어 같은 칼럼 안에서의 순서 변경을 지원한다.
 - 티켓이 0개일 경우 `EmptyColumnState` 표시 (§8)
+- `status === 'DONE'`일 때만 카드 목록 하단에 "24시간 지난 완료 항목은 표시되지 않아요" 안내 텍스트를 고정 표시한다 (DATA_MODEL.md §5.4 24시간 필터 안내). 별도 컴포넌트로 분리하지 않고 `Column`이 조건부로 렌더링하는 정적 텍스트로 처리한다.
 
 ### 4.2 ColumnHeader
 
@@ -419,6 +420,7 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 **동작**:
 - 오픈 시 `GET /api/tickets/:id`로 최신 데이터 조회
 - 저장 시 변경된 필드만 `PATCH` 요청 (Partial Update)
+- 변경된 필드를 사용자에게 시각적으로 구분해 보여주지는 않는다 — `TicketForm`은 모든 필드를 항상 동일하게 표시하고, "어떤 필드가 바뀌었는지" 추적은 API 호출 시점의 내부 로직(변경분만 PATCH body에 포함)에 국한된다.
 - 하단에 `DeleteButton` 배치 → 클릭 시 `ConfirmDialog` 오픈 (US-008)
 - 저장 성공 시 모달 닫힘 + 보드에 즉시 반영 (US-007)
 
@@ -436,6 +438,8 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 | startedAt (시작일) | DATA_MODEL.md §5.1 — TODO/IN_PROGRESS 진입 시 시스템 자동 설정 |
 | completedAt (종료일) | DATA_MODEL.md §5.2 — DONE 진입 시 시스템 자동 설정 |
 | createdAt (생성일) | 생성 시점 자동 기록 |
+
+`status`는 `Badge`(§8.6) primitive를 사용하지 않고 일반 텍스트로 표시한다. `Badge`의 variant 목록(`low`/`medium`/`high`/`overdue`/`neutral`)에는 상태(`BACKLOG`/`TODO`/`IN_PROGRESS`/`DONE`)용 색상이 정의되어 있지 않으며, §11 접근성 원칙("색상에만 의존하지 않음")에 따라 별도 색상 확장 없이 텍스트만으로 표시해도 충분하다.
 
 #### TicketForm (수정 모드)
 
