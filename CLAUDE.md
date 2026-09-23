@@ -3,7 +3,7 @@
 # 프로젝트 개요
 Tika는 티켓 기반 칸반 보드 TODO 앱이다.
 Next.js App Router 기반으로, 프론트엔드와 백엔드를 디렉토리 수준에서 분리한다.
-src/shared/에서 타입곽 검증 스키마를 공유한다.
+src/shared/에서 타입과 검증 스키마를 공유한다.
 
 > **핵심 원칙은 `.specify/memory/constitution.md` 참조**
 > 이 문서는 구체적인 구현 방법과 실무 가이드를 다룬다.
@@ -14,15 +14,19 @@ src/shared/에서 타입곽 검증 스키마를 공유한다.
 - src/client/   : 프론트엔드 로직 (components, hooks, api 호출)
 - src/shared/   : 공유 타입, Zod 스키마, 상수
 - docs/         : 프로젝트 명세 문서
+- __tests__/    : Jest 테스트 (api, components, hooks, integration, services)
+- drizzle/      : Drizzle 마이그레이션 SQL
+- .specify/     : Spec Kit 템플릿·스크립트 (SDD 워크플로우, constitution)
+- .claude/      : Claude Code 스킬/설정 (speckit-* 슬래시 스킬 포함)
 
 ## 기술 스택
-- **Framework**: Next.js 15 (App Router)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript (strict mode)
 - **Frontend**: React 19
 - **Styling**: Tailwind CSS 4
-- **Drag & Drop**: @dnd-kit/core + @dnd-kit/sortable
-- **ORM**: Drizzle ORM
-- **DB**: PostgreSQL (로컬: node-postgres, 배포: Vercel Postgres)
+- **Drag & Drop**: @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities
+- **ORM**: Drizzle ORM (드라이버: postgres)
+- **DB**: PostgreSQL (로컬: postgres 드라이버, 배포: Vercel Postgres)
 - **Validation**: Zod
 - **Testing**: Jest + React Testing Library
 - **Deployment**: Vercel
@@ -38,6 +42,9 @@ src/shared/에서 타입곽 검증 스키마를 공유한다.
 | docs/DATA_MODEL.md | DB 스키마, ERD, 비즈니스 규칙 |
 | docs/COMPONENT_SPEC.md | 컴포넌트 계층, Props, 이벤트 |
 | docs/TEST_CASES.md | TDD용 테스트 케이스 정의 |
+| docs/DESIGN_SYSTEM.md | 컬러/간격/그림자/라운딩 등 디자인 가이드 |
+
+> `docs/history.md`는 작업 히스토리를 담은 개인 스크래치 노트로, gitignore 대상이며 명세 문서가 아니다.
 
 ## MCP Servers (Model Context Protocol)
 
@@ -48,7 +55,7 @@ src/shared/에서 타입곽 검증 스키마를 공유한다.
 ### 환경 변수
 ```bash
 # .env.local
-DATABASE_URL=postgresql://user:password@localhost:5432/tika
+DATABASE_URL=postgresql://tika_user:password@localhost:5432/tika_dev
 ```
 
 ### 경로 별칭
@@ -85,7 +92,7 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tika
 ## 개발 규칙
 
 ### 반드시 지켜야 할 것
-- 새 기능 구현 전 TEST_CASES.md의 해상 테스트부터 작성
+- 새 기능 구현 전 TEST_CASES.md의 해당 테스트부터 작성
 - API 구현 시 API_SPEC.md의 명세를 정확히 따르기
 - 컴포넌트 구현 시 COMPONENT_SPEC.md의 Props와 동작 준수
 - 타입 변경 시 src/shared/types 먼저 수정
@@ -94,12 +101,12 @@ DATABASE_URL=postgresql://user:password@localhost:5432/tika
 - 명세에 없는 기능 임의 추가 금지
 - 테스트 코드 삭제 또는 skip 금지
 - any 타입 사용 금지
-- consol.log 커밋 금지 (디버깅 후 제거)
+- console.log 커밋 금지 (디버깅 후 제거)
 - src/client/에서 직접 DB 접근 금지
 - src/server/에서 React 관련 코드 작성 금지
 
 ### 경계 규칙
-- 백엔드 작입 시(app/api, src/server/) 프론트엔드(src/client/) 코드 수정 금지
+- 백엔드 작업 시(app/api, src/server/) 프론트엔드(src/client/) 코드 수정 금지
 - 프론트엔드 작업 시(src/client) 백엔드(app/api/, src/server/) 코드 수정 금지
 - 양쪽에 영향을 주는 변경은 src/shared/ 먼저 수정 후 각각 반영
 
@@ -125,8 +132,8 @@ DB 작업 → DATA_MODEL.md 확인
 ### 3. 구현 순서
 ```
 1. src/shared/types - 타입 정의
-2. src/shared/validations -Zod 스키마
-3. __tests__/ -테스트 코드
+2. src/shared/validations - Zod 스키마
+3. __tests__/ - 테스트 코드
 4. src/server/services/ - 비즈니스 로직
 5. app/api/ - Route Handler
 6. src/client/api/ - API 호출 함수
@@ -164,29 +171,23 @@ npm run db:seed       # 시드 데이터 생성
 ```
 
 ### Git Hooks
-```bash
-bash .specify/scripts/bash/install-hooks.sh   # hook 설치
-rm .git/hooks/pre-commit                      # hook 제거
-```
-
-- **pre-commit**: 커밋 시 CHANGELOG.md 자동 업데이트
-- `/changelog` 수동 실행 시에는 hook이 자동 스킵됨 (중복 방지)
+- 현재 pre-commit hook 및 CHANGELOG.md 자동화는 설정되어 있지 않음 (`.git/hooks/pre-commit` 미설치, CHANGELOG.md 미존재)
 
 ## 검증 체크리스트
 
 ### 커밋 전
-- [] `npx tsc --noEmit` 타입 체크 통과
-- [] `npx run test` 모든 테스트 통과
-- [] `npx run build` 빌드 성공
-- [] console.log 제거 확인
-- [] .env 파일 미포함 확인
+- [ ] `npx tsc --noEmit` 타입 체크 통과
+- [ ] `npm run test` 모든 테스트 통과
+- [ ] `npm run build` 빌드 성공
+- [ ] console.log 제거 확인
+- [ ] .env 파일 미포함 확인
 
 ## PR 전
-- [] 명세 문서와 일치 확인
-- [] 테스트 커버리지 충분
-- [] 레이어 분리 준수 (Route Handler vs Service)
-- [] Zod 검증 누락 없음
-- [] 에러 응답 형식 일치
+- [ ] 명세 문서와 일치 확인
+- [ ] 테스트 커버리지 충분
+- [ ] 레이어 분리 준수 (Route Handler vs Service)
+- [ ] Zod 검증 누락 없음
+- [ ] 에러 응답 형식 일치
 
 ## 금지 사항
 
@@ -198,7 +199,7 @@ rm .git/hooks/pre-commit                      # hook 제거
 - ❌ .env 파일 커밋
 - ❌ src/client/에서 DB 직접 접근
 - ❌ Route Handler에 비즈니스 로직 작성
-- ❌ **공식 문서 확인 없이 추축으로 구현** (특히 Claude Code 기능/구조)
+- ❌ **공식 문서 확인 없이 추측으로 구현** (특히 Claude Code 기능/구조)
 
 ### 확인 필요 
 - ⚠️ DB 스키마 변경 → 마이그레이션 생성
@@ -212,7 +213,7 @@ rm .git/hooks/pre-commit                      # hook 제거
 
 ### 타입 에러
 ```bash
-  #타입 체크
+  # 타입 체크
   npx tsc --noEmit
 
   # 캐시 삭제 후 재시도
@@ -281,23 +282,4 @@ docs: API_SPEC.md 에러 코드 추가
 DESIGN_SYSTEM.md의 간격/그림자/라운딩 규칙을 따른다.
 컬러 변경 시 colors.json과 globals.css의 CSS 변수를 함께 업데이트한다.
 
-
----
-
-## 개발 방법론: SSD + TDD
-### 작업 순서
-1. **명세 확인**: 요청된 기능은 명세를 먼저 확인하거나 작성
-2. **테스트 구현**: 명세를 기반으로 실패하는 테스트 먼저 작성
-3. **최소 구현**: 테스트를 통과시키는 최소한의 코드 작성
-4. **리팩터링**: 테스트 통과 유지하며 코드 개선
-5. **명세 검증**: 구현이 명세와 일치하는지 최종 확인
-
-### 명세 위치
-- API 명세: docs/API_SPEC.md
-- 데이터 모델: /docs/DATA_MODEL.md
-- 컴포넌트 명세: /docs/COMPONENT_SPEC.md
-
-### 필수 규칙
-- 명세 없이 구현 시작 금지
-- 테스트 없이 구현 완료 선언 금지
-- 명세와 불일치하는 구현 금지
+> SDD/TDD 작업 순서와 필수 규칙은 상단 "SDD 워크플로우" 섹션을 따른다 (중복 서술 제거).
