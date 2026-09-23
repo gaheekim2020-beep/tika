@@ -1,0 +1,357 @@
+<title>Tika Component Map</title>
+<style>
+:root{
+  --bg:#FAFAF8; --surface:#FFFFFF; --ink:#1F2320; --ink-dim:#5B6058;
+  --border:#DDD9D0; --border-strong:#C7C2B6;
+  --accent:#3D6B5C; --accent-soft:#E4EEE9;
+  --tag:#8A6D3B; --tag-soft:#F3EAD9;
+  --card-bg:#FFFFFF; --card-border:#E2DED3;
+  --danger:#B3483B;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#151815; --surface:#1C201C; --ink:#EDEEE9; --ink-dim:#A3A99C;
+    --border:#33372F; --border-strong:#454A3E;
+    --accent:#7FBFA8; --accent-soft:#20302A;
+    --tag:#D9B77C; --tag-soft:#332A18;
+    --card-bg:#20241F; --card-border:#33372F;
+    --danger:#E08A7A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#151815; --surface:#1C201C; --ink:#EDEEE9; --ink-dim:#A3A99C;
+  --border:#33372F; --border-strong:#454A3E;
+  --accent:#7FBFA8; --accent-soft:#20302A;
+  --tag:#D9B77C; --tag-soft:#332A18;
+  --card-bg:#20241F; --card-border:#33372F;
+  --danger:#E08A7A;
+}
+
+*{box-sizing:border-box;}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  padding:40px 24px 80px;
+}
+.mono{font-family:'JetBrains Mono','Courier New',monospace;}
+
+.wrap{max-width:1180px;margin:0 auto;}
+
+header{margin-bottom:36px;}
+header .eyebrow{
+  font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:10px;
+}
+header h1{
+  font-family:'JetBrains Mono',monospace; font-size:clamp(24px,3.4vw,34px);
+  font-weight:700; margin:0 0 10px; text-wrap:balance; letter-spacing:-0.01em;
+}
+header p{
+  max-width:62ch; color:var(--ink-dim); font-size:15px; line-height:1.65; margin:0;
+}
+
+.legend{
+  display:flex; gap:18px; flex-wrap:wrap; margin-top:18px; font-size:12.5px; color:var(--ink-dim);
+}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.swatch{width:11px;height:11px;border-radius:3px;display:inline-block;}
+
+/* ---- Section shell ---- */
+.section-title{
+  font-family:'JetBrains Mono',monospace; font-size:13px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-dim); margin:48px 0 14px;
+  display:flex; align-items:center; gap:10px;
+}
+.section-title::after{content:"";flex:1;height:1px;background:var(--border);}
+
+/* ---- Board mock ---- */
+.board-frame{
+  border:1px solid var(--border); border-radius:10px; background:var(--surface);
+  overflow:hidden;
+}
+.board-header{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px; border-bottom:1px solid var(--border);
+  position:relative;
+}
+.label-tag{
+  font-family:'JetBrains Mono',monospace; font-size:10.5px; font-weight:600;
+  color:var(--tag); background:var(--tag-soft); border:1px solid var(--tag);
+  border-radius:4px; padding:2px 6px; letter-spacing:.02em;
+  white-space:nowrap;
+}
+.header-left{display:flex; align-items:center; gap:10px;}
+.search-mock{
+  width:140px; height:26px; border:1px dashed var(--border-strong); border-radius:6px;
+  background:var(--bg); position:relative;
+}
+.search-mock::after{
+  content:"검색 (2차)"; position:absolute; left:8px; top:50%; transform:translateY(-50%);
+  font-size:10px; color:var(--ink-dim);
+}
+.newticket-btn{
+  background:var(--accent); color:var(--surface); border:none; border-radius:6px;
+  font-size:12.5px; font-weight:600; padding:7px 14px; font-family:'Inter',sans-serif;
+  position:relative;
+}
+
+.board-body{
+  display:grid; grid-template-columns:170px 1fr 1fr 1fr; gap:0;
+}
+.col{
+  border-right:1px solid var(--border); padding:14px 10px; position:relative; min-height:340px;
+}
+.col:last-child{border-right:none;}
+.col.backlog{background:var(--bg);}
+.col-header{
+  display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; position:relative;
+}
+.col-header h3{font-size:12.5px; font-weight:700; margin:0; letter-spacing:.01em;}
+.count{
+  font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--ink-dim);
+  background:var(--surface); border:1px solid var(--border); border-radius:99px; padding:1px 7px;
+}
+
+.card{
+  background:var(--card-bg); border:1px solid var(--card-border); border-radius:8px;
+  padding:10px 11px; margin-bottom:9px; position:relative;
+}
+.card.overdue{border-color:var(--danger);}
+.card-title{font-size:12.5px; font-weight:600; margin:0 0 7px; line-height:1.4;}
+.badge-row{display:flex; align-items:center; gap:5px; flex-wrap:wrap;}
+.pill{
+  font-size:9.5px; font-weight:700; border-radius:99px; padding:2px 7px;
+  font-family:'JetBrains Mono',monospace; letter-spacing:.01em;
+}
+.pill.low{background:#E7E4DB;color:#6B6656;}
+.pill.medium{background:var(--accent-soft);color:var(--accent);}
+.pill.high{background:#F3DAD6;color:#9C3A2C;}
+.pill.overdue{background:#F3DAD6;color:var(--danger);}
+.due{font-size:10px;color:var(--ink-dim);margin-top:6px;}
+
+.empty-col{
+  border:1.5px dashed var(--border-strong); border-radius:8px; padding:22px 10px;
+  text-align:center; color:var(--ink-dim); font-size:11px; position:relative;
+}
+
+/* callout labels positioned via tag badges inline - handled above */
+
+/* ---- Modal mocks ---- */
+.modal-row{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+@media (max-width:820px){.modal-row{grid-template-columns:1fr;}}
+
+.modal-mock{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:18px; position:relative; box-shadow:0 8px 24px -12px rgba(0,0,0,.18);
+}
+.modal-mock .label-tag{position:absolute; top:-11px; left:16px;}
+.modal-title{font-size:14px; font-weight:700; margin:4px 0 14px;}
+.field{margin-bottom:10px;}
+.field label{
+  display:block; font-size:10.5px; color:var(--ink-dim); margin-bottom:4px;
+  font-family:'JetBrains Mono',monospace; letter-spacing:.01em;
+}
+.field .input{
+  border:1px solid var(--border); border-radius:6px; height:28px; background:var(--bg);
+}
+.field .input.textarea{height:48px;}
+.field .input.select{width:110px; display:inline-flex; align-items:center; padding:0 8px; font-size:11px; color:var(--ink-dim); font-family:'JetBrains Mono',monospace;}
+.modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:16px;}
+.btn-mock{
+  border-radius:6px; padding:6px 13px; font-size:11.5px; font-weight:600; border:1px solid transparent;
+}
+.btn-mock.secondary{background:transparent; border-color:var(--border-strong); color:var(--ink-dim);}
+.btn-mock.primary{background:var(--accent); color:var(--surface);}
+.btn-mock.danger{background:var(--danger); color:var(--surface);}
+
+.detail-row{
+  display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);
+  font-size:11.5px;
+}
+.detail-row:last-of-type{border-bottom:none;}
+.detail-row .k{color:var(--ink-dim); font-family:'JetBrains Mono',monospace; font-size:10.5px;}
+.detail-row .v{font-weight:600;}
+
+.confirm-inline{
+  margin-top:14px; border:1px solid var(--border-strong); border-radius:8px; padding:12px;
+  background:var(--bg); position:relative;
+}
+.confirm-inline .label-tag{position:absolute; top:-10px; left:10px;}
+.confirm-inline p{font-size:12px; margin:6px 0 10px;}
+
+/* ---- Hierarchy tree ---- */
+.tree{
+  font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1.9;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:18px 22px; overflow-x:auto; color:var(--ink-dim);
+}
+.tree .lv0{color:var(--ink); font-weight:700;}
+.tree .lv1{color:var(--accent); font-weight:600;}
+.tree .lv2{color:var(--tag); font-weight:600;}
+.tree .indent1{padding-left:20px;}
+.tree .indent2{padding-left:40px;}
+.tree .indent3{padding-left:60px;}
+
+footer{
+  margin-top:56px; padding-top:18px; border-top:1px solid var(--border);
+  font-size:11.5px; color:var(--ink-dim); font-family:'JetBrains Mono',monospace;
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">docs/COMPONENT_SPEC.md — visual reference</div>
+    <h1>컴포넌트 이름이 화면 어디에 해당하는지</h1>
+    <p>노란 태그가 COMPONENT_SPEC.md에서 정의한 컴포넌트 이름입니다. 실제 칸반 보드(데스크톱, §2.1 그리드 기준)와 모달 위에 겹쳐서, 코드의 각 이름이 눈에 보이는 어떤 영역을 그리는지 확인할 수 있습니다.</p>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--tag-soft);border:1px solid var(--tag);"></span>컴포넌트 이름표</span>
+      <span><span class="swatch" style="background:var(--card-bg);border:1px solid var(--card-border);"></span>실제 렌더링 영역(모형)</span>
+    </div>
+  </header>
+
+  <div class="section-title">보드 화면 (BoardContainer 하위)</div>
+
+  <div class="board-frame">
+    <div class="board-header">
+      <span class="label-tag" style="position:absolute;top:-11px;left:16px;">BoardHeader</span>
+      <div class="header-left">
+        <strong class="mono" style="font-size:13px;">Tika</strong>
+        <div class="search-mock">
+          <span class="label-tag" style="position:absolute;top:-11px;left:0;">SearchInput</span>
+        </div>
+      </div>
+      <button class="newticket-btn">+ 새 업무
+        <span class="label-tag" style="position:absolute;top:-11px;right:0;">NewTicketButton</span>
+      </button>
+    </div>
+
+    <div class="board-body">
+      <div class="col backlog">
+        <div class="col-header">
+          <span class="label-tag" style="position:absolute;top:-24px;left:0;">Column (BACKLOG)</span>
+          <h3 style="margin-top:8px;">BACKLOG</h3>
+        </div>
+        <div class="card">
+          <span class="label-tag" style="position:absolute;top:-9px;left:8px;">TicketCard</span>
+          <p class="card-title">로그인 리다이렉트 버그 조사</p>
+          <div class="badge-row">
+            <span class="pill medium">MEDIUM</span>
+          </div>
+        </div>
+        <div class="card">
+          <p class="card-title">디자인 리뷰 준비</p>
+          <div class="badge-row"><span class="pill low">LOW</span></div>
+        </div>
+        <div class="card">
+          <p class="card-title">API 문서 초안</p>
+          <div class="badge-row"><span class="pill low">LOW</span></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-header"><h3>TODO</h3><span class="count">2</span>
+          <span class="label-tag" style="position:absolute;top:-24px;left:0;">ColumnHeader</span>
+        </div>
+        <div class="card overdue">
+          <span class="label-tag" style="position:absolute;top:-9px;right:8px;">OverdueIndicator</span>
+          <p class="card-title">결제 모듈 마이그레이션</p>
+          <div class="badge-row">
+            <span class="pill high">HIGH</span>
+            <span class="pill overdue">⚠ 지연</span>
+          </div>
+          <div class="due">종료예정 09-01</div>
+        </div>
+        <div class="card">
+          <p class="card-title">알림 배지 UI</p>
+          <div class="badge-row"><span class="pill medium">MEDIUM</span>
+            <span class="label-tag" style="position:absolute;bottom:8px;right:8px;">PriorityBadge</span>
+          </div>
+          <div class="due">종료예정 09-10</div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-header"><h3>IN_PROGRESS</h3><span class="count">1</span></div>
+        <div class="card">
+          <p class="card-title">칸반 드래그앤드롭 구현</p>
+          <div class="badge-row"><span class="pill high">HIGH</span></div>
+          <div class="due">종료예정 09-05</div>
+        </div>
+        <div class="empty-col" style="margin-top:60px;">
+          아직 카드가 없어요
+          <span class="label-tag" style="position:absolute;top:-11px;left:50%;transform:translateX(-50%);">EmptyColumnState</span>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="col-header"><h3>DONE</h3><span class="count">1</span></div>
+        <div class="card" style="opacity:.75;">
+          <p class="card-title">DB 스키마 초안 작성</p>
+          <div class="badge-row"><span class="pill medium">MEDIUM</span></div>
+          <div class="due">종료예정 08-30</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">티켓 생성/상세 모달 (TicketCard 클릭 → TicketModal)</div>
+
+  <div class="modal-row">
+    <div class="modal-mock">
+      <span class="label-tag">TicketFormModal</span>
+      <p class="modal-title">새 업무 만들기</p>
+      <div class="field"><label>제목 *</label><div class="input"></div></div>
+      <div class="field"><label>설명</label><div class="input textarea"></div></div>
+      <div class="field">
+        <label>우선순위 (기본값)</label><div class="input select">MEDIUM ▾</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-mock secondary">취소</button>
+        <button class="btn-mock primary">생성</button>
+      </div>
+    </div>
+
+    <div class="modal-mock">
+      <span class="label-tag">TicketModal</span>
+      <p class="modal-title">결제 모듈 마이그레이션</p>
+
+      <div style="position:relative;margin-bottom:12px;">
+        <span class="label-tag" style="position:static;display:inline-block;margin-bottom:6px;">TicketDetailView</span>
+        <div class="detail-row"><span class="k">status</span><span class="v">TODO</span></div>
+        <div class="detail-row"><span class="k">startedAt</span><span class="v">—</span></div>
+        <div class="detail-row"><span class="k">createdAt</span><span class="v">08-20</span></div>
+      </div>
+
+      <div style="position:relative;">
+        <span class="label-tag" style="position:static;display:inline-block;margin-bottom:6px;">TicketForm (수정 가능 필드만)</span>
+        <div class="field"><label>제목</label><div class="input"></div></div>
+        <div class="field"><label>우선순위</label><div class="input select">HIGH ▾</div></div>
+        <div class="field"><label>종료예정일 (dueDate)</label><div class="input" style="width:130px;"></div></div>
+      </div>
+
+      <div class="confirm-inline">
+        <span class="label-tag">ConfirmDialog (DeleteButton 클릭 시)</span>
+        <p>정말 삭제하시겠습니까?</p>
+        <div class="modal-actions" style="margin-top:0;">
+          <button class="btn-mock secondary">취소</button>
+          <button class="btn-mock danger">삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">컴포넌트 계층 (포함 관계)</div>
+  <div class="tree">
+<div><span class="lv0">App</span> (서버 컴포넌트)</div>
+<div class="indent1">└─ <span class="lv0">BoardContainer</span> ("use client", 상태 소유)</div>
+<div class="indent2">├─ <span class="lv1">BoardHeader</span> → SearchInput, NewTicketButton</div>
+<div class="indent2">├─ <span class="lv1">Board</span> (DndContext)</div>
+<div class="indent3">│&nbsp;&nbsp;└─ <span class="lv1">Column</span> × 4 → ColumnHeader, <span class="lv1">TicketCard</span> → PriorityBadge, OverdueIndicator</div>
+<div class="indent2">└─ <span class="lv1">TicketModal</span> → TicketDetailView, TicketForm, DeleteButton → <span class="lv2">ConfirmDialog</span></div>
+<div style="margin-top:10px;">공통 primitive(재사용): <span class="lv2">Modal</span> · <span class="lv2">Badge</span> · <span class="lv2">Button</span> · <span class="lv2">ConfirmDialog</span></div>
+  </div>
+
+  <footer>
+    docs/COMPONENT_SPEC.md §1–§8 기준 · 데스크톱 그리드(§2.1) 모형 · 색상/크기는 개념 설명용 근사치입니다
+  </footer>
+</div>

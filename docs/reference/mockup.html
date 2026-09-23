@@ -1,0 +1,413 @@
+<title>Tika 보드 목업</title>
+<style>
+:root{
+  --color-bg-page:#F9FAFB;
+  --color-bg-surface:#FFFFFF;
+  --color-bg-sidebar:#F3F4F6;
+  --color-border-default:#E5E7EB;
+  --color-border-strong:#D1D5DB;
+  --color-text-primary:#111827;
+  --color-text-secondary:#6B7280;
+  --color-text-placeholder:#9CA3AF;
+  --color-text-inverse:#FFFFFF;
+  --color-brand-primary:#4F46E5;
+  --color-brand-primary-hover:#4338CA;
+  --color-priority-low-bg:#F3F4F6;
+  --color-priority-low-text:#4B5563;
+  --color-priority-medium-bg:#DBEAFE;
+  --color-priority-medium-text:#1D4ED8;
+  --color-priority-high-bg:#FEE2E2;
+  --color-priority-high-text:#B91C1C;
+  --color-status-overdue-bg:#FEF2F2;
+  --color-status-overdue-text:#DC2626;
+  --color-status-overdue-border:#FCA5A5;
+  --color-status-danger-bg:#FEE2E2;
+  --color-status-danger-text:#B91C1C;
+  --color-status-success-bg:#DCFCE7;
+  --color-status-success-text:#15803D;
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--color-bg-page);
+  color:var(--color-text-primary);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+
+.mono{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;}
+
+/* ---------- App shell ---------- */
+.app{max-width:1360px;margin:0 auto;padding:0 24px 48px;}
+
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 0;position:sticky;top:0;background:var(--color-bg-page);z-index:5;
+}
+.topbar-left{display:flex;align-items:center;gap:20px;}
+.logo{
+  font-weight:700;font-size:17px;letter-spacing:-0.01em;color:var(--color-text-primary);
+  display:flex;align-items:center;gap:8px;
+}
+.logo-mark{
+  width:22px;height:22px;border-radius:6px;background:var(--color-brand-primary);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:var(--color-text-inverse);font-size:12px;font-weight:700;
+}
+.search-mock{
+  display:flex;align-items:center;gap:8px;
+  width:220px;height:34px;padding:0 12px;border-radius:6px;
+  border:1px solid var(--color-border-default);background:var(--color-bg-surface);
+  color:var(--color-text-placeholder);font-size:13px;
+}
+.search-mock svg{flex:none;opacity:.6;}
+
+.new-ticket-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--color-brand-primary);color:var(--color-text-inverse);
+  border:none;border-radius:6px;padding:9px 16px;
+  font-size:13.5px;font-weight:600;font-family:inherit;cursor:pointer;
+  box-shadow:0 1px 2px rgba(17,24,39,.06);
+}
+
+/* ---------- Board grid ---------- */
+.board{
+  display:grid;
+  grid-template-columns:280px 1fr 1fr 1fr;
+  gap:16px;
+  align-items:start;
+}
+
+.column{
+  background:var(--color-bg-surface);
+  border:1px solid var(--color-border-default);
+  border-radius:8px;
+  padding:16px;
+  min-height:120px;
+}
+.column.is-backlog{background:var(--color-bg-sidebar);}
+
+.column-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:12px;
+}
+.column-header h2{
+  margin:0;font-size:13px;font-weight:700;letter-spacing:.02em;
+  text-transform:uppercase;color:var(--color-text-secondary);
+}
+.column-count{
+  font-family:"SFMono-Regular",Consolas,monospace;font-size:11.5px;
+  color:var(--color-text-secondary);background:var(--color-bg-page);
+  border:1px solid var(--color-border-default);border-radius:999px;
+  padding:1px 8px;min-width:20px;text-align:center;
+}
+
+.cards{display:flex;flex-direction:column;gap:8px;}
+
+.card{
+  background:var(--color-bg-surface);
+  border:1px solid var(--color-border-default);
+  border-radius:8px;
+  padding:12px;
+  box-shadow:0 1px 2px rgba(17,24,39,.04);
+  cursor:pointer;
+}
+.card.is-overdue{border-color:var(--color-status-overdue-border);}
+.card.is-done{opacity:.72;}
+
+.card-title{
+  margin:0 0 8px;font-size:13.5px;font-weight:600;line-height:1.4;
+  color:var(--color-text-primary);
+}
+
+.badge-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;
+  letter-spacing:.01em;
+}
+.badge.priority-low{background:var(--color-priority-low-bg);color:var(--color-priority-low-text);}
+.badge.priority-medium{background:var(--color-priority-medium-bg);color:var(--color-priority-medium-text);}
+.badge.priority-high{background:var(--color-priority-high-bg);color:var(--color-priority-high-text);}
+.badge.overdue{background:var(--color-status-overdue-bg);color:var(--color-status-overdue-text);}
+
+.card-due{
+  margin-top:8px;font-size:11.5px;color:var(--color-text-secondary);
+  font-family:"SFMono-Regular",Consolas,monospace;
+}
+.card-due.is-overdue-text{color:var(--color-status-overdue-text);font-weight:600;}
+
+.empty-state{
+  border:1.5px dashed var(--color-border-strong);border-radius:8px;
+  padding:28px 12px;text-align:center;color:var(--color-text-placeholder);
+  font-size:12.5px;
+}
+
+/* ---------- Modal overlay mock ---------- */
+.modal-showcase{
+  margin-top:56px;
+  display:grid;grid-template-columns:1fr 1fr;gap:24px;
+}
+@media (max-width:900px){.modal-showcase{grid-template-columns:1fr;}}
+
+.showcase-label{
+  font-family:"SFMono-Regular",Consolas,monospace;
+  font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--color-text-secondary);margin:0 0 10px;
+}
+
+.modal-card{
+  background:var(--color-bg-surface);
+  border:1px solid var(--color-border-default);
+  border-radius:12px;
+  box-shadow:0 8px 24px -8px rgba(17,24,39,.12);
+  padding:20px 22px;
+}
+
+.modal-header{margin-bottom:16px;}
+.modal-header h3{margin:0;font-size:15px;font-weight:700;}
+
+.form-field{margin-bottom:14px;}
+.form-field label{
+  display:block;font-size:12px;font-weight:600;color:var(--color-text-secondary);
+  margin-bottom:5px;
+}
+.form-field .control{
+  border:1px solid var(--color-border-default);border-radius:6px;
+  height:34px;background:var(--color-bg-page);
+  display:flex;align-items:center;padding:0 10px;
+  color:var(--color-text-placeholder);font-size:12.5px;
+}
+.form-field .control.textarea{height:56px;align-items:flex-start;padding-top:8px;}
+.form-field .control.select{width:140px;justify-content:space-between;color:var(--color-text-primary);}
+.form-row{display:flex;gap:10px;}
+.form-row .form-field{flex:1;}
+
+.modal-actions{
+  display:flex;justify-content:flex-end;gap:8px;margin-top:18px;
+  padding-top:14px;border-top:1px solid var(--color-border-default);
+}
+.btn{
+  border-radius:6px;padding:8px 16px;font-size:13px;font-weight:600;
+  border:1px solid transparent;cursor:pointer;font-family:inherit;
+}
+.btn.secondary{background:transparent;border-color:var(--color-border-strong);color:var(--color-text-primary);}
+.btn.primary{background:var(--color-brand-primary);color:var(--color-text-inverse);}
+.btn.danger{background:var(--color-status-danger-bg);color:var(--color-status-danger-text);}
+
+.detail-list{
+  border:1px solid var(--color-border-default);border-radius:8px;
+  padding:2px 12px;margin-bottom:16px;background:var(--color-bg-page);
+}
+.detail-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:9px 0;border-bottom:1px solid var(--color-border-default);
+  font-size:12.5px;
+}
+.detail-row:last-child{border-bottom:none;}
+.detail-row .k{color:var(--color-text-secondary);}
+.detail-row .v{font-weight:600;}
+.status-chip{
+  font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;
+  background:var(--color-status-success-bg);color:var(--color-status-success-text);
+}
+
+.delete-zone{
+  margin-top:16px;padding-top:14px;border-top:1px solid var(--color-border-default);
+  display:flex;justify-content:space-between;align-items:center;
+}
+.delete-zone .btn.danger-outline{
+  background:transparent;border-color:var(--color-status-danger-text);
+  color:var(--color-status-danger-text);
+}
+
+footer.note{
+  margin-top:48px;padding-top:16px;border-top:1px solid var(--color-border-default);
+  font-size:11.5px;color:var(--color-text-secondary);
+  font-family:"SFMono-Regular",Consolas,monospace;
+}
+</style>
+
+<div class="app">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo"><span class="logo-mark">T</span>Tika</div>
+      <div class="search-mock">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        검색 (2차 구현 예정)
+      </div>
+    </div>
+    <button class="new-ticket-btn">+ 새 업무</button>
+  </div>
+
+  <div class="board">
+    <!-- BACKLOG -->
+    <section class="column is-backlog">
+      <div class="column-header">
+        <h2>Backlog</h2>
+      </div>
+      <div class="cards">
+        <article class="card">
+          <p class="card-title">알림 기능 조사</p>
+          <div class="badge-row"><span class="badge priority-low">LOW</span></div>
+        </article>
+        <article class="card">
+          <p class="card-title">성능 테스트 계획</p>
+          <div class="badge-row"><span class="badge priority-medium">MEDIUM</span></div>
+        </article>
+        <article class="card">
+          <p class="card-title">CI/CD 파이프라인 구축</p>
+          <div class="badge-row"><span class="badge priority-low">LOW</span></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- TODO -->
+    <section class="column">
+      <div class="column-header">
+        <h2>TODO</h2>
+        <span class="column-count">2</span>
+      </div>
+      <div class="cards">
+        <article class="card is-overdue">
+          <p class="card-title">대시보드 레이아웃</p>
+          <div class="badge-row">
+            <span class="badge priority-medium">MEDIUM</span>
+            <span class="badge overdue">⚠ 지연</span>
+          </div>
+          <div class="card-due is-overdue-text">종료예정 09-03</div>
+        </article>
+        <article class="card">
+          <p class="card-title">로그인 페이지 구현</p>
+          <div class="badge-row"><span class="badge priority-high">HIGH</span></div>
+          <div class="card-due">종료예정 09-07</div>
+        </article>
+      </div>
+    </section>
+
+    <!-- IN_PROGRESS -->
+    <section class="column">
+      <div class="column-header">
+        <h2>In Progress</h2>
+        <span class="column-count">2</span>
+      </div>
+      <div class="cards">
+        <article class="card is-overdue">
+          <p class="card-title">API 설계 문서 작성</p>
+          <div class="badge-row">
+            <span class="badge priority-high">HIGH</span>
+            <span class="badge overdue">⚠ 지연</span>
+          </div>
+          <div class="card-due is-overdue-text">종료예정 09-01</div>
+        </article>
+        <article class="card">
+          <p class="card-title">DB 스키마 설계</p>
+          <div class="badge-row"><span class="badge priority-medium">MEDIUM</span></div>
+          <div class="card-due">종료예정 09-10</div>
+        </article>
+      </div>
+    </section>
+
+    <!-- DONE -->
+    <section class="column">
+      <div class="column-header">
+        <h2>Done</h2>
+        <span class="column-count">2</span>
+      </div>
+      <div class="cards">
+        <article class="card is-done">
+          <p class="card-title">프로젝트 요구사항 정리</p>
+          <div class="badge-row"><span class="badge priority-high">HIGH</span></div>
+          <div class="card-due">종료예정 09-02</div>
+        </article>
+        <article class="card is-done">
+          <p class="card-title">UI 와이어프레임 작성</p>
+          <div class="badge-row"><span class="badge priority-medium">MEDIUM</span></div>
+          <div class="card-due">종료예정 09-03</div>
+        </article>
+        <div class="empty-state">24시간 지난 완료 항목은 표시되지 않아요</div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-showcase">
+    <div>
+      <p class="showcase-label">TicketFormModal — 새 업무 만들기</p>
+      <div class="modal-card">
+        <div class="modal-header"><h3>새 업무 만들기</h3></div>
+        <div class="form-field">
+          <label>제목 *</label>
+          <div class="control">예: 결제 모듈 마이그레이션</div>
+        </div>
+        <div class="form-field">
+          <label>설명</label>
+          <div class="control textarea">선택 입력</div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>우선순위</label>
+            <div class="control select">MEDIUM ▾</div>
+          </div>
+          <div class="form-field">
+            <label>시작예정일</label>
+            <div class="control">YYYY-MM-DD</div>
+          </div>
+          <div class="form-field">
+            <label>종료예정일</label>
+            <div class="control">YYYY-MM-DD</div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn secondary">취소</button>
+          <button class="btn primary">생성</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="showcase-label">TicketModal — 상세/수정 (결제 모듈 마이그레이션)</p>
+      <div class="modal-card">
+        <div class="modal-header"><h3>결제 모듈 마이그레이션</h3></div>
+
+        <div class="detail-list">
+          <div class="detail-row"><span class="k">상태</span><span class="status-chip">TODO</span></div>
+          <div class="detail-row"><span class="k">시작일</span><span class="v">2026-08-28</span></div>
+          <div class="detail-row"><span class="k">종료일</span><span class="v">—</span></div>
+          <div class="detail-row"><span class="k">생성일</span><span class="v">2026-08-20</span></div>
+        </div>
+
+        <div class="form-field">
+          <label>제목</label>
+          <div class="control" style="color:var(--color-text-primary);">결제 모듈 마이그레이션</div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>우선순위</label>
+            <div class="control select">HIGH ▾</div>
+          </div>
+          <div class="form-field">
+            <label>종료예정일</label>
+            <div class="control" style="color:var(--color-text-primary);">2026-09-03</div>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn secondary">취소</button>
+          <button class="btn primary">저장</button>
+        </div>
+
+        <div class="delete-zone">
+          <button class="btn danger-outline">삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="note">
+    docs/COMPONENT_SPEC.md §2.1(데스크톱 그리드) · docs/DESIGN_SYSTEM.md §1–3(컬러/간격/라운딩) 기준 정적 목업 · 데이터는 docs/DATA_MODEL.md §6 시드 예시 참고
+  </footer>
+</div>
