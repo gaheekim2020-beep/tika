@@ -82,15 +82,15 @@ CLAUDE.md/TRD.md의 3계층 구조를 따른다: `src/shared/`(공유 타입·�
 
 ### Tests for User Story 2
 
-- [ ] T014 [P] [US2] `__tests__/api/tickets.test.ts`에 상세 정보 포함 생성 테스트 추가: description/priority/plannedStartDate/dueDate를 모두 채워 요청 시 입력값이 응답에 그대로 반영되는지 검증 (TC-API-001-02), description 생략 시 `null`로 채워지는지(TC-API-001-05), priority 생략 시 `MEDIUM`으로 채워지는지(TC-API-001-06) 검증
-- [ ] T015 [P] [US2] `__tests__/api/tickets.test.ts`에 필드별 검증 실패 테스트 추가: description 1001자 초과(TC-API-001-10) → `400`+`field:"description"`, 잘못된 priority 값 "URGENT"(TC-API-001-11) → `400`+`field:"priority"`+"우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요", 과거 dueDate(TC-API-001-12) → `400`+`field:"dueDate"`+"종료예정일은 오늘 이후 날짜를 선택해주세요"
-- [ ] T016 [P] [US2] `__tests__/api/tickets.test.ts`에 DB 오류 시나리오 테스트 추가: DB insert가 실패하도록 mock한 뒤 `500`+`{error:{code:"INTERNAL_ERROR",message:"서버 오류가 발생했습니다"}}` 반환 확인 (TC-API-001-13)
+- [X] T014 [P] [US2] `__tests__/api/tickets.test.ts`에 상세 정보 포함 생성 테스트 추가: description/priority/plannedStartDate/dueDate를 모두 채워 요청 시 입력값이 응답에 그대로 반영되는지 검증 (TC-API-001-02), description 생략 시 `null`로 채워지는지(TC-API-001-05), priority 생략 시 `MEDIUM`으로 채워지는지(TC-API-001-06) 검증
+- [X] T015 [P] [US2] `__tests__/api/tickets.test.ts`에 필드별 검증 실패 테스트 추가: description 1001자 초과(TC-API-001-10) → `400`+`field:"description"`, 잘못된 priority 값 "URGENT"(TC-API-001-11) → `400`+`field:"priority"`+"우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요", 과거 dueDate(TC-API-001-12) → `400`+`field:"dueDate"`+"종료예정일은 오늘 이후 날짜를 선택해주세요"
+- [X] T016 [P] [US2] `__tests__/api/tickets.test.ts`에 DB 오류 시나리오 테스트 추가: DB insert가 실패하도록 mock한 뒤 `500`+`{error:{code:"INTERNAL_ERROR",message:"서버 오류가 발생했습니다"}}` 반환 확인 (TC-API-001-13)
 
 ### Implementation for User Story 2
 
-- [ ] T017 [US2] T004의 `createTicketSchema`가 description/priority/plannedStartDate/dueDate 모든 조합(전체 입력, 전체 생략, 일부 생략)을 올바르게 처리하는지 점검하고 필요 시 보완 (기본값·nullable 처리, US1 스키마 재사용 — 별도 파일 신설 없음)
-- [ ] T018 [US2] `app/api/tickets/route.ts`의 에러 응답 매핑이 T015의 3가지 필드별 메시지를 `docs/API_SPEC.md` §1 400 표와 정확히 일치하게 반환하는지 확인하고 필요 시 보완 (의존: T012)
-- [ ] T019 [US2] T014~T016의 모든 테스트가 통과하는지 `npm run test -- __tests__/api/tickets.test.ts`로 확인 (Green 단계)
+- [X] T017 [US2] T004의 `createTicketSchema`가 description/priority/plannedStartDate/dueDate 모든 조합(전체 입력, 전체 생략, 일부 생략)을 올바르게 처리하는지 점검하고 필요 시 보완 (기본값·nullable 처리, US1 스키마 재사용 — 별도 파일 신설 없음) — 점검 결과 기존 스키마가 모든 조합을 이미 올바르게 처리함, 수정 불필요
+- [X] T018 [US2] `app/api/tickets/route.ts`의 에러 응답 매핑이 T015의 3가지 필드별 메시지를 `docs/API_SPEC.md` §1 400 표와 정확히 일치하게 반환하는지 확인하고 필요 시 보완 (의존: T012) — 점검 결과 기존 매핑이 이미 정확히 일치함, 수정 불필요
+- [X] T019 [US2] T014~T016의 모든 테스트가 통과하는지 `npm run test -- __tests__/api/tickets.test.ts`로 확인 (Green 단계) — 11개 테스트 전부 통과
 
 **Checkpoint**: User Story 1과 User Story 2 모두 독립적으로 동작 — 상세 정보 포함 생성과 필드별 검증이 완비된 상태
 
@@ -100,10 +100,10 @@ CLAUDE.md/TRD.md의 3계층 구조를 따른다: `src/shared/`(공유 타입·�
 
 **Purpose**: 두 User Story에 공통으로 영향을 미치는 마무리 작업
 
-- [ ] T020 `npx tsc --noEmit`으로 전체 타입 체크 통과 확인 (constitution 원칙 I)
-- [ ] T021 `npm run lint`로 ESLint 통과 확인, `console.log` 잔존 여부 확인
-- [ ] T022 `specs/001-create-ticket-api/quickstart.md`의 4개 curl 시나리오를 `npm run dev` 실행 상태에서 수동 재현하여 실제 응답이 문서와 일치하는지 확인
-- [ ] T023 `npm run build`로 프로덕션 빌드 성공 확인
+- [X] T020 `npx tsc --noEmit`으로 전체 타입 체크 통과 확인 (constitution 원칙 I)
+- [X] T021 `npm run lint`로 ESLint 통과 확인, `console.log` 잔존 여부 확인
+- [X] T022 `specs/001-create-ticket-api/quickstart.md`의 4개 curl 시나리오를 `npm run dev` 실행 상태에서 수동 재현하여 실제 응답이 문서와 일치하는지 확인
+- [X] T023 `npm run build`로 프로덕션 빌드 성공 확인
 
 ---
 
