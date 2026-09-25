@@ -1,5 +1,5 @@
 /** @jest-environment node */
-import { POST } from "@/app/api/tickets/route";
+import { GET, POST } from "@/app/api/tickets/route";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
 
@@ -197,6 +197,97 @@ describe("POST /api/tickets - 서버 오류", () => {
     expect(body.error).toMatchObject({
       code: "INTERNAL_ERROR",
       message: "서버 오류가 발생했습니다",
+    });
+  });
+});
+
+describe("GET /api/tickets", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  // TC-API-002-03: 티켓이 하나도 없는 상태에서 조회
+  it("티켓이 하나도 없으면 200과 함께 4개 빈 배열 키를 반환한다", async () => {
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toEqual({
+      BACKLOG: [],
+      TODO: [],
+      IN_PROGRESS: [],
+      DONE: [],
+    });
+  });
+
+  // TC-API-008-02/03/04: BACKLOG/TODO/IN_PROGRESS 오버듀 판정
+  it.each([
+    ["BACKLOG", "BACKLOG"],
+    ["TODO", "TODO"],
+    ["IN_PROGRESS", "IN_PROGRESS"],
+  ])(
+    "%s 상태에서 종료예정일이 지난 티켓은 isOverdue=true를 반환한다",
+    async (_label, status) => {
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      await db.insert(tickets).values({
+        title: "지연된 티켓",
+        status,
+        position: 1024,
+        dueDate: yesterday,
+      });
+
+      const res = await GET();
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body[status]).toHaveLength(1);
+      expect(body[status][0].isOverdue).toBe(true);
+    }
+  );
+
+  // TC-API-008-05: DONE 상태는 dueDate가 과거여도 isOverdue=false
+  it("DONE 상태에서 종료예정일이 지난 티켓은 isOverdue=false를 반환한다", async () => {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    await db.insert(tickets).values({
+      title: "완료된 지연 티켓",
+      status: "DONE",
+      position: 1024,
+      dueDate: yesterday,
+      completedAt: new Date(Date.now() - 60 * 60 * 1000),
+    });
+
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.DONE).toHaveLength(1);
+    expect(body.DONE[0].isOverdue).toBe(false);
+  });
+});
+
+// TC-API-002-06: DB 오류 등 예상치 못한 서버 오류
+describe("GET /api/tickets - 서버 오류", () => {
+  it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
+    let mockedGET!: typeof GET;
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/server/services/ticketService", () => ({
+        getBoardData: jest.fn().mockRejectedValue(new Error("DB 연결 실패")),
+      }));
+      ({ GET: mockedGET } = await import("@/app/api/tickets/route"));
+    });
+
+    const res = await mockedGET();
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "티켓 목록을 불러오지 못했습니다",
     });
   });
 });

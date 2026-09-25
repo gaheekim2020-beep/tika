@@ -1,12 +1,36 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { tickets } from "@/server/db/schema";
+import { tickets, type TicketRow } from "@/server/db/schema";
 import {
+  COLUMN_ORDER,
   TICKET_STATUS,
+  type BoardData,
   type CreateTicketInput,
   type TicketStatus,
   type TicketWithMeta,
 } from "@/shared/types";
+
+const DONE_VISIBLE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+function toTicketWithMeta(row: TicketRow): TicketWithMeta {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    status: row.status as TicketStatus,
+    priority: row.priority as TicketWithMeta["priority"],
+    position: row.position,
+    plannedStartDate: row.plannedStartDate
+      ? row.plannedStartDate.toISOString().slice(0, 10)
+      : null,
+    dueDate: row.dueDate ? row.dueDate.toISOString().slice(0, 10) : null,
+    startedAt: row.startedAt,
+    completedAt: row.completedAt,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    isOverdue: calculateIsOverdue(row.status as TicketStatus, row.dueDate),
+  };
+}
 
 export async function getNextBacklogPosition(): Promise<number> {
   const [lowest] = await db
@@ -52,21 +76,34 @@ export async function createTicket(
     })
     .returning();
 
-  return {
-    id: row.id,
-    title: row.title,
-    description: row.description,
-    status: row.status as TicketStatus,
-    priority: row.priority as TicketWithMeta["priority"],
-    position: row.position,
-    plannedStartDate: row.plannedStartDate
-      ? row.plannedStartDate.toISOString().slice(0, 10)
-      : null,
-    dueDate: row.dueDate ? row.dueDate.toISOString().slice(0, 10) : null,
-    startedAt: row.startedAt,
-    completedAt: row.completedAt,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    isOverdue: calculateIsOverdue(row.status as TicketStatus, row.dueDate),
-  };
+  return toTicketWithMeta(row);
+}
+
+export async function getBoardData(): Promise<BoardData> {
+  const rows = await db
+    .select()
+    .from(tickets)
+    .orderBy(asc(tickets.status), asc(tickets.position));
+
+  const board = COLUMN_ORDER.reduce((acc, status) => {
+    acc[status] = [];
+    return acc;
+  }, {} as BoardData);
+
+  const doneVisibleAfter = new Date(Date.now() - DONE_VISIBLE_WINDOW_MS);
+
+  for (const row of rows) {
+    const status = row.status as TicketStatus;
+
+    if (
+      status === TICKET_STATUS.DONE &&
+      (row.completedAt === null || row.completedAt < doneVisibleAfter)
+    ) {
+      continue;
+    }
+
+    board[status].push(toTicketWithMeta(row));
+  }
+
+  return board;
 }
