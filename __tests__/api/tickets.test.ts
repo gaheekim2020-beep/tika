@@ -1,12 +1,21 @@
 /** @jest-environment node */
 import { GET, POST } from "@/app/api/tickets/route";
-import { GET as GET_BY_ID } from "@/app/api/tickets/[id]/route";
+import { GET as GET_BY_ID, PATCH } from "@/app/api/tickets/[id]/route";
+import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
 
 function makeRequest(body: unknown): Request {
   return new Request("http://localhost/api/tickets", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function makePatchRequest(body: unknown): Request {
+  return new Request("http://localhost/api/tickets/1", {
+    method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
@@ -378,6 +387,316 @@ describe("GET /api/tickets/:id", () => {
   });
 });
 
+describe("PATCH /api/tickets/:id", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  async function insertFullTicket() {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "원래 제목",
+        description: "원래 설명",
+        status: "TODO",
+        priority: "HIGH",
+        position: 2048,
+        plannedStartDate: new Date("2026-10-01"),
+        dueDate: new Date("2099-12-31"),
+        updatedAt: new Date(Date.now() - 60 * 1000),
+      })
+      .returning();
+    return row;
+  }
+
+  // TC-API-004-01: 제목만 수정
+  it("제목만 수정하면 200과 함께 제목만 바뀌고 updatedAt이 갱신된다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ title: "수정된 제목" }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      id: row.id,
+      title: "수정된 제목",
+      description: "원래 설명",
+      priority: "HIGH",
+      plannedStartDate: "2026-10-01",
+      dueDate: "2099-12-31",
+    });
+    expect(new Date(body.updatedAt).getTime()).toBeGreaterThan(row.updatedAt.getTime());
+  });
+
+  // TC-API-004-02: 여러 필드 동시 수정
+  it("여러 필드를 동시에 수정하면 전달한 필드가 모두 반영된다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({
+        title: "새 제목",
+        description: "새 설명",
+        priority: "LOW",
+        plannedStartDate: "2026-11-01",
+        dueDate: "2099-11-30",
+      }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      title: "새 제목",
+      description: "새 설명",
+      priority: "LOW",
+      plannedStartDate: "2026-11-01",
+      dueDate: "2099-11-30",
+    });
+  });
+
+  // TC-API-004-12: status/position은 처리 대상이 아니다
+  it("body에 status/position이 있어도 무시되어 실제 상태와 순서는 바뀌지 않는다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ title: "수정된 제목", status: "DONE", position: 1 }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.title).toBe("수정된 제목");
+    expect(body.status).toBe("TODO");
+    expect(body.position).toBe(2048);
+  });
+
+  // TC-API-004-03: description을 null로 초기화
+  it("description을 null로 전달하면 200과 함께 설명이 비워진다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(makePatchRequest({ description: null }), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.description).toBeNull();
+  });
+
+  // TC-API-004-04: plannedStartDate를 null로 초기화
+  it("plannedStartDate를 null로 전달하면 200과 함께 시작예정일이 비워진다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ plannedStartDate: null }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.plannedStartDate).toBeNull();
+  });
+
+  // TC-API-004-05: 빈 body
+  it("빈 body면 200, 값은 유지되고 updatedAt만 갱신된다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(makePatchRequest({}), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      title: "원래 제목",
+      description: "원래 설명",
+      priority: "HIGH",
+      plannedStartDate: "2026-10-01",
+      dueDate: "2099-12-31",
+    });
+    expect(new Date(body.updatedAt).getTime()).toBeGreaterThan(row.updatedAt.getTime());
+  });
+
+  // TC-API-004-15: dueDate를 null로 초기화 + isOverdue 재연산
+  it("dueDate를 null로 전달하면 종료예정일이 비워지고 isOverdue가 false가 된다", async () => {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "기한 지난 티켓",
+        status: "TODO",
+        position: 1024,
+        dueDate: new Date("2020-01-01"),
+      })
+      .returning();
+
+    const res = await PATCH(makePatchRequest({ dueDate: null }), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.dueDate).toBeNull();
+    expect(body.isOverdue).toBe(false);
+  });
+
+  // TC-API-004-06: 공백만 있는 제목
+  it("제목을 공백만으로 수정하면 400 VALIDATION_ERROR(field=title)를 반환한다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(makePatchRequest({ title: "   " }), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      field: "title",
+      message: "제목을 입력해주세요",
+    });
+  });
+
+  // TC-API-004-07: 제목 200자 초과
+  it("제목이 201자면 400 VALIDATION_ERROR(field=title)를 반환한다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ title: "a".repeat(201) }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      field: "title",
+      message: "제목은 200자 이내로 입력해주세요",
+    });
+  });
+
+  // TC-API-004-08: 설명 1000자 초과
+  it("설명이 1001자면 400 VALIDATION_ERROR(field=description)를 반환한다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ description: "a".repeat(1001) }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      field: "description",
+      message: "설명은 1000자 이내로 입력해주세요",
+    });
+  });
+
+  // TC-API-004-09: 잘못된 우선순위
+  it("잘못된 우선순위면 400 VALIDATION_ERROR(field=priority)를 반환한다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ priority: "URGENT" }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      field: "priority",
+      message: "우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요",
+    });
+  });
+
+  // TC-API-004-10: 과거 종료예정일
+  it("종료예정일이 어제면 400 VALIDATION_ERROR(field=dueDate)를 반환한다", async () => {
+    const row = await insertFullTicket();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const dueDate = [
+      yesterday.getFullYear(),
+      String(yesterday.getMonth() + 1).padStart(2, "0"),
+      String(yesterday.getDate()).padStart(2, "0"),
+    ].join("-");
+
+    const res = await PATCH(makePatchRequest({ dueDate }), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "VALIDATION_ERROR",
+      field: "dueDate",
+      message: "종료예정일은 오늘 이후 날짜를 선택해주세요",
+    });
+  });
+
+  // TC-API-004-16: 일부만 무효여도 전체 거절
+  it("여러 필드 중 하나만 무효여도 400이고 유효한 필드도 반영되지 않는다", async () => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      makePatchRequest({ title: "정상 제목", priority: "URGENT" }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({ code: "VALIDATION_ERROR", field: "priority" });
+
+    const [unchanged] = await db.select().from(tickets).where(eq(tickets.id, row.id));
+    expect(unchanged.title).toBe("원래 제목");
+    expect(unchanged.priority).toBe("HIGH");
+  });
+
+  // TC-API-004-17: JSON이 아니거나 객체가 아닌 본문
+  it.each([
+    ["JSON이 아닌 문자열", "not json"],
+    ["JSON 배열", "[]"],
+  ])("본문이 %s이면 400 VALIDATION_ERROR(field 없음)를 반환한다", async (_label, raw) => {
+    const row = await insertFullTicket();
+
+    const res = await PATCH(
+      new Request("http://localhost/api/tickets/1", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: raw,
+      }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+    expect(body.error.message).toBe("요청 본문이 올바른 JSON 형식이 아닙니다");
+    expect(body.error).not.toHaveProperty("field");
+  });
+
+  // TC-API-004-13/14: 잘못된 ID 형식
+  it.each(["abc", "-1", "0"])("id=%s이면 400 INVALID_ID를 반환한다", async (id) => {
+    const res = await PATCH(makePatchRequest({ title: "수정" }), makeParams(id));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "INVALID_ID",
+      message: "유효하지 않은 티켓 ID입니다",
+    });
+  });
+
+  // TC-API-004-11: 존재하지 않는 티켓
+  it("존재하지 않는 id로 수정하면 404 TICKET_NOT_FOUND를 반환한다", async () => {
+    const res = await PATCH(makePatchRequest({ title: "수정" }), makeParams("999999"));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toMatchObject({
+      code: "TICKET_NOT_FOUND",
+      message: "존재하지 않거나 삭제된 티켓입니다",
+    });
+  });
+});
+
 describe("GET /api/tickets/:id - 서버 오류", () => {
   it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
     let mockedGET!: typeof GET_BY_ID;
@@ -396,6 +715,29 @@ describe("GET /api/tickets/:id - 서버 오류", () => {
     expect(body.error).toMatchObject({
       code: "INTERNAL_ERROR",
       message: "티켓을 불러오지 못했습니다",
+    });
+  });
+});
+
+describe("PATCH /api/tickets/:id - 서버 오류", () => {
+  // TC-API-004-18
+  it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
+    let mockedPATCH!: typeof PATCH;
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/server/services/ticketService", () => ({
+        updateTicket: jest.fn().mockRejectedValue(new Error("DB 연결 실패")),
+      }));
+      ({ PATCH: mockedPATCH } = await import("@/app/api/tickets/[id]/route"));
+    });
+
+    const res = await mockedPATCH(makePatchRequest({ title: "수정" }), makeParams("1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "티켓을 수정하지 못했습니다",
     });
   });
 });
