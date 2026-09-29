@@ -173,3 +173,7 @@ describe("ticketService", () => {
     });
   });
 });
+
+afterAll(async () => {
+  await db.$client.end();
+});

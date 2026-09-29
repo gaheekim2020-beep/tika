@@ -399,3 +399,7 @@ describe("GET /api/tickets/:id - 서버 오류", () => {
     });
   });
 });
+
+afterAll(async () => {
+  await db.$client.end();
+});
