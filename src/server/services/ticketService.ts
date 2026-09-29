@@ -1,6 +1,6 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
-import { tickets, type TicketRow } from "@/server/db/schema";
+import { tickets, type NewTicketRow, type TicketRow } from "@/server/db/schema";
 import {
   COLUMN_ORDER,
   TICKET_STATUS,
@@ -8,6 +8,7 @@ import {
   type CreateTicketInput,
   type TicketStatus,
   type TicketWithMeta,
+  type UpdateTicketInput,
 } from "@/shared/types";
 
 const DONE_VISIBLE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -81,6 +82,34 @@ export async function createTicket(
 
 export async function getTicketById(id: number): Promise<TicketWithMeta | null> {
   const [row] = await db.select().from(tickets).where(eq(tickets.id, id)).limit(1);
+  return row ? toTicketWithMeta(row) : null;
+}
+
+export async function updateTicket(
+  id: number,
+  input: UpdateTicketInput
+): Promise<TicketWithMeta | null> {
+  const changes: Partial<NewTicketRow> = {};
+
+  if (input.title !== undefined) changes.title = input.title;
+  if (input.description !== undefined) changes.description = input.description;
+  if (input.priority !== undefined) changes.priority = input.priority;
+  if (input.plannedStartDate !== undefined) {
+    changes.plannedStartDate = input.plannedStartDate
+      ? new Date(input.plannedStartDate)
+      : null;
+  }
+  if (input.dueDate !== undefined) {
+    changes.dueDate = input.dueDate ? new Date(input.dueDate) : null;
+  }
+
+  // 빈 입력에서도 updatedAt은 갱신되어야 하므로 항상 명시한다
+  const [row] = await db
+    .update(tickets)
+    .set({ ...changes, updatedAt: new Date() })
+    .where(eq(tickets.id, id))
+    .returning();
+
   return row ? toTicketWithMeta(row) : null;
 }
 
