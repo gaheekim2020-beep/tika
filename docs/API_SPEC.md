@@ -223,23 +223,26 @@
   "title": "string (optional)",
   "description": "string | null (optional)",
   "priority": "LOW | MEDIUM | HIGH (optional)",
-  "plannedStartDate": "ISO 8601 date (optional)",
-  "dueDate": "ISO 8601 date (optional)"
+  "plannedStartDate": "ISO 8601 date | null (optional)",
+  "dueDate": "ISO 8601 date | null (optional)"
 }
 ```
 
 | 필드 | 타입 | 필수 | 제약조건 |
 |------|------|------|----------|
-| title | string | X | 1~200자, 공백만 불가 |
-| description | string \| null | X | 최대 1000자 |
-| priority | enum | X | LOW, MEDIUM, HIGH |
-| plannedStartDate | date string | X | ISO 8601 |
-| dueDate | date string | X | 오늘 이후 날짜 |
+| title | string | X | 1~200자, 공백만 불가 (`null` 불가) |
+| description | string \| null | X | 최대 1000자, `null`이면 값을 비움 |
+| priority | enum | X | LOW, MEDIUM, HIGH (`null` 불가) |
+| plannedStartDate | date string \| null | X | ISO 8601, `null`이면 값을 비움 |
+| dueDate | date string \| null | X | 값이 있으면 오늘 이후 날짜, `null`이면 값을 비움 |
 
 > `status`, `position` 변경은 본 API에서 처리하지 않는다 (`PATCH /api/tickets/reorder` 참조).
 
 ### 처리 규칙
-- 전달된 필드만 선택적으로 업데이트
+- 전달된 필드만 선택적으로 업데이트 (전달하지 않은 필드는 기존 값 유지)
+- `description`, `plannedStartDate`, `dueDate`에 `null`을 전달하면 해당 값을 비움
+- 빈 객체(`{}`)도 성공으로 처리하며 `updatedAt`만 갱신
+- 하나라도 검증에 실패하면 요청 전체를 거절하고 어떤 필드도 반영하지 않음
 - `updatedAt`을 현재 시각으로 자동 갱신
 - 응답 시 `isOverdue` 파생 필드 재연산
 
@@ -255,6 +258,7 @@
 | 설명 1000자 초과 | VALIDATION_ERROR | description | 설명은 1000자 이내로 입력해주세요 |
 | 잘못된 우선순위 값 | VALIDATION_ERROR | priority | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
 | 과거 종료예정일 | VALIDATION_ERROR | dueDate | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
+| 요청 본문이 JSON이 아니거나 객체가 아님 | VALIDATION_ERROR | (없음) | 요청 본문이 올바른 JSON 형식이 아닙니다 |
 
 **404 Not Found**
 ```json
