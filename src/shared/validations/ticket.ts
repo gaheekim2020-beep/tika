@@ -35,3 +35,5 @@ export const createTicketSchema = z.object({
 
 // CreateTicketInput 타입은 src/shared/types에서 정의한다 (constitution 원칙 I).
 // 이 스키마는 그 타입과 형태가 일치하도록 유지한다.
+
+export const ticketIdParamSchema = z.coerce.number().int().positive();

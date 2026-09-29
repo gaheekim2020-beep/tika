@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { GET, POST } from "@/app/api/tickets/route";
+import { GET as GET_BY_ID } from "@/app/api/tickets/[id]/route";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
 
@@ -9,6 +10,10 @@ function makeRequest(body: unknown): Request {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function makeParams(id: string): { params: Promise<{ id: string }> } {
+  return { params: Promise.resolve({ id }) };
 }
 
 describe("POST /api/tickets", () => {
@@ -288,6 +293,109 @@ describe("GET /api/tickets - 서버 오류", () => {
     expect(body.error).toMatchObject({
       code: "INTERNAL_ERROR",
       message: "티켓 목록을 불러오지 못했습니다",
+    });
+  });
+});
+
+describe("GET /api/tickets/:id", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  // TC-API-003-01: 존재하는 티켓 ID 조회
+  it("존재하는 id로 조회하면 200과 함께 전체 필드를 반환한다", async () => {
+    const [row] = await db
+      .insert(tickets)
+      .values({ title: "상세 조회 티켓", status: "BACKLOG", position: 1024 })
+      .returning();
+
+    const res = await GET_BY_ID(
+      new Request("http://localhost"),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      id: row.id,
+      title: "상세 조회 티켓",
+      status: "BACKLOG",
+      isOverdue: false,
+    });
+  });
+
+  // TC-API-003-02: 완료된 지 24시간이 지난 DONE 티켓도 상세 조회는 성공해야 한다
+  it("completedAt이 24시간을 초과한 DONE 티켓도 200으로 조회된다", async () => {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "오래된 완료 티켓",
+        status: "DONE",
+        position: 1024,
+        completedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      })
+      .returning();
+
+    const res = await GET_BY_ID(
+      new Request("http://localhost"),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.title).toBe("오래된 완료 티켓");
+  });
+
+  // TC-API-003-03/04: 잘못된 ID 형식
+  it.each(["abc", "-1", "0"])(
+    "id=%s이면 400 INVALID_ID를 반환한다",
+    async (id) => {
+      const res = await GET_BY_ID(new Request("http://localhost"), makeParams(id));
+      const body = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(body.error).toMatchObject({
+        code: "INVALID_ID",
+        message: "유효하지 않은 티켓 ID입니다",
+      });
+    }
+  );
+
+  // TC-API-003-05/06: 존재하지 않거나 삭제된 티켓
+  it("존재하지 않는 id로 조회하면 404 TICKET_NOT_FOUND를 반환한다", async () => {
+    const res = await GET_BY_ID(new Request("http://localhost"), makeParams("999999"));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toMatchObject({
+      code: "TICKET_NOT_FOUND",
+      message: "존재하지 않거나 삭제된 티켓입니다",
+    });
+  });
+});
+
+describe("GET /api/tickets/:id - 서버 오류", () => {
+  it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
+    let mockedGET!: typeof GET_BY_ID;
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/server/services/ticketService", () => ({
+        getTicketById: jest.fn().mockRejectedValue(new Error("DB 연결 실패")),
+      }));
+      ({ GET: mockedGET } = await import("@/app/api/tickets/[id]/route"));
+    });
+
+    const res = await mockedGET(new Request("http://localhost"), makeParams("1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "티켓을 불러오지 못했습니다",
     });
   });
 });

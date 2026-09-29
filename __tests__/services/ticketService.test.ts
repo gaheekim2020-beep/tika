@@ -3,6 +3,7 @@ import {
   calculateIsOverdue,
   getBoardData,
   getNextBacklogPosition,
+  getTicketById,
 } from "@/server/services/ticketService";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
@@ -124,6 +125,51 @@ describe("ticketService", () => {
       const board = await getBoardData();
 
       expect(board.DONE.map((t) => t.title)).toEqual(["최근 완료"]);
+    });
+  });
+
+  describe("getTicketById", () => {
+    // TC-API-003-01: 존재하는 티켓 ID 조회
+    it("존재하는 id로 조회하면 전체 필드와 isOverdue를 포함해 반환한다", async () => {
+      const [row] = await db
+        .insert(tickets)
+        .values({
+          title: "상세 조회 티켓",
+          status: TICKET_STATUS.BACKLOG,
+          position: 1024,
+        })
+        .returning();
+
+      const ticket = await getTicketById(row.id);
+
+      expect(ticket).not.toBeNull();
+      expect(ticket?.id).toBe(row.id);
+      expect(ticket?.title).toBe("상세 조회 티켓");
+      expect(ticket?.isOverdue).toBe(false);
+    });
+
+    // TC-API-003-02: 완료된 지 24시간이 지난 DONE 티켓도 상세 조회는 성공해야 한다
+    it("completedAt이 24시간을 초과한 DONE 티켓도 정상적으로 반환한다", async () => {
+      const [row] = await db
+        .insert(tickets)
+        .values({
+          title: "오래된 완료 티켓",
+          status: TICKET_STATUS.DONE,
+          position: 1024,
+          completedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        })
+        .returning();
+
+      const ticket = await getTicketById(row.id);
+
+      expect(ticket).not.toBeNull();
+      expect(ticket?.title).toBe("오래된 완료 티켓");
+    });
+
+    // TC-API-003-05: 존재하지 않는 ID 조회
+    it("존재하지 않는 id로 조회하면 null을 반환한다", async () => {
+      const ticket = await getTicketById(999999);
+      expect(ticket).toBeNull();
     });
   });
 });

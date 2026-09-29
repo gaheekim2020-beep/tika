@@ -79,6 +79,11 @@ export async function createTicket(
   return toTicketWithMeta(row);
 }
 
+export async function getTicketById(id: number): Promise<TicketWithMeta | null> {
+  const [row] = await db.select().from(tickets).where(eq(tickets.id, id)).limit(1);
+  return row ? toTicketWithMeta(row) : null;
+}
+
 export async function getBoardData(): Promise<BoardData> {
   const rows = await db
     .select()
