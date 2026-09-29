@@ -240,6 +240,20 @@ npm run test -- --verbose
 # 원인 3: DB 연결 실패
 pg_isready # PostgreSQL 상태 확인
 psql $DATABASE_URL -c "SELECT 1"
+
+# 원인 4: 좀비 커넥션이 테이블 락을 쥐고 있어 테스트가 무한정 멈춤
+# (jest/dev 서버를 taskkill 등으로 강제 종료한 뒤 자주 발생 — 정상 종료(Ctrl+C) 없이
+#  끊긴 커넥션이 트랜잭션 중간 상태로 DB에 남아 잠금을 계속 보유함)
+# → pg_isready는 신뢰할 수 없을 때가 있으니(포트는 열려 있는데 응답 이상) psql로 직접 확인
+psql $DATABASE_URL -c "SELECT pid, state, query, now()-query_start AS duration FROM pg_stat_activity WHERE datname IN ('tika_dev','tika_test');"
+# → state=idle in transaction이거나 락 대기 중이면 좀비 의심 (단순 idle은 아래 원인 5 참고)
+psql $DATABASE_URL -c "SELECT pg_terminate_backend(<pid>);"
+
+# 원인 5: 테스트는 전부 통과하는데 Jest가 종료되지 않음 ("Jest did not exit one second after the test run has completed")
+# (테스트 종료 후에도 postgres 커넥션 풀이 열려 있어 Node 프로세스가 끝나지 않음.
+#  락 없이 단순 idle 세션이 tika_test에 남아 있으면 이 경우 — 좀비 락이 아님)
+# → DB를 쓰는 테스트 파일 끝에 최상위 afterAll로 커넥션 종료 추가
+#   afterAll(async () => { await db.$client.end(); });
 ```
 
 ### DB 연결 오류
