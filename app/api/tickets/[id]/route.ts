@@ -5,6 +5,17 @@ import {
 } from "@/shared/validations/ticket";
 import { getTicketById, updateTicket } from "@/server/services/ticketService";
 
+const invalidBodyResponse = (): Response =>
+  NextResponse.json(
+    {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "요청 본문이 올바른 JSON 형식이 아닙니다",
+      },
+    },
+    { status: 400 }
+  );
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -55,21 +66,11 @@ export async function PATCH(
     );
   }
 
-  const invalidBodyResponse = NextResponse.json(
-    {
-      error: {
-        code: "VALIDATION_ERROR",
-        message: "요청 본문이 올바른 JSON 형식이 아닙니다",
-      },
-    },
-    { status: 400 }
-  );
-
   let body: unknown;
   try {
     body = await request.json();
   } catch {
-    return invalidBodyResponse;
+    return invalidBodyResponse();
   }
 
   const parsed = updateTicketSchema.safeParse(body);
@@ -77,7 +78,7 @@ export async function PATCH(
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     if (issue.path.length === 0) {
-      return invalidBodyResponse;
+      return invalidBodyResponse();
     }
     return NextResponse.json(
       {
