@@ -2,11 +2,13 @@
 import {
   calculateIsOverdue,
   completeTicket,
+  deleteTicket,
   getBoardData,
   getNextBacklogPosition,
   getTicketById,
   updateTicket,
 } from "@/server/services/ticketService";
+import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
 import { TICKET_STATUS } from "@/shared/types";
@@ -498,6 +500,120 @@ describe("ticketService", () => {
       expect(stored?.status).toBe(TICKET_STATUS.TODO);
       expect(stored?.completedAt).toBeNull();
       expect(stored?.position).toBe(2048);
+    });
+  });
+  describe("deleteTicket", () => {
+    async function insertTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+      const [row] = await db
+        .insert(tickets)
+        .values({
+          title: "삭제할 티켓",
+          description: "원래 설명",
+          status: TICKET_STATUS.TODO,
+          priority: "HIGH",
+          position: 2048,
+          ...overrides,
+        })
+        .returning();
+      return row;
+    }
+
+    it("존재하는 티켓을 삭제하면 true를 반환하고 이후 조회하면 null이다", async () => {
+      const row = await insertTicket();
+
+      const deleted = await deleteTicket(row.id);
+      const stored = await getTicketById(row.id);
+
+      expect(deleted).toBe(true);
+      expect(stored).toBeNull();
+    });
+
+    it.each([
+      [TICKET_STATUS.BACKLOG],
+      [TICKET_STATUS.TODO],
+      [TICKET_STATUS.IN_PROGRESS],
+      [TICKET_STATUS.DONE],
+    ])("%s 상태의 티켓도 삭제할 수 있다", async (status) => {
+      const row = await insertTicket({
+        status,
+        completedAt:
+          status === TICKET_STATUS.DONE
+            ? new Date(Date.now() - 25 * 60 * 60 * 1000)
+            : null,
+      });
+
+      const deleted = await deleteTicket(row.id);
+
+      expect(deleted).toBe(true);
+      expect(await getTicketById(row.id)).toBeNull();
+    });
+
+    it("삭제 직후 DB를 직접 조회하면 행이 남아 있지 않다 (Hard Delete)", async () => {
+      const row = await insertTicket();
+
+      await deleteTicket(row.id);
+      const rows = await db.select().from(tickets).where(eq(tickets.id, row.id));
+
+      expect(rows).toHaveLength(0);
+    });
+
+    it("가운데 티켓을 삭제해도 나머지 티켓의 내용과 position은 재정렬 없이 그대로다", async () => {
+      const past = new Date(Date.now() - 60 * 1000);
+      const first = await insertTicket({ title: "첫째", position: 1024, updatedAt: past });
+      const middle = await insertTicket({ title: "가운데", position: 2048 });
+      const last = await insertTicket({ title: "셋째", position: 3072, updatedAt: past });
+
+      await deleteTicket(middle.id);
+
+      const storedFirst = await getTicketById(first.id);
+      const storedLast = await getTicketById(last.id);
+      expect(storedFirst).toMatchObject({ title: "첫째", description: "원래 설명", position: 1024 });
+      expect(storedFirst?.updatedAt.getTime()).toBe(past.getTime());
+      expect(storedLast).toMatchObject({ title: "셋째", description: "원래 설명", position: 3072 });
+      expect(storedLast?.updatedAt.getTime()).toBe(past.getTime());
+    });
+
+    it("다른 칼럼의 티켓은 영향받지 않는다", async () => {
+      const target = await insertTicket({ status: TICKET_STATUS.TODO });
+      const other = await insertTicket({
+        status: TICKET_STATUS.IN_PROGRESS,
+        position: 1024,
+      });
+
+      await deleteTicket(target.id);
+
+      const stored = await getTicketById(other.id);
+      expect(stored).toMatchObject({ status: TICKET_STATUS.IN_PROGRESS, position: 1024 });
+    });
+
+    it("존재하지 않는 id면 false를 반환하고 다른 티켓은 삭제되지 않는다", async () => {
+      const row = await insertTicket();
+
+      const deleted = await deleteTicket(999999);
+
+      expect(deleted).toBe(false);
+      expect(await getTicketById(row.id)).not.toBeNull();
+    });
+
+    it("같은 id를 연달아 삭제하면 첫 번째만 true다", async () => {
+      const row = await insertTicket();
+
+      const first = await deleteTicket(row.id);
+      const second = await deleteTicket(row.id);
+
+      expect(first).toBe(true);
+      expect(second).toBe(false);
+    });
+
+    it("같은 id를 동시에 삭제하면 한쪽만 true다", async () => {
+      const row = await insertTicket();
+
+      const results = await Promise.all([
+        deleteTicket(row.id),
+        deleteTicket(row.id),
+      ]);
+
+      expect(results.filter(Boolean)).toHaveLength(1);
     });
   });
 });

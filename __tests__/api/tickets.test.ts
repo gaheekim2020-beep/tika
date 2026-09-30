@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import { GET, POST } from "@/app/api/tickets/route";
-import { GET as GET_BY_ID, PATCH } from "@/app/api/tickets/[id]/route";
+import { DELETE, GET as GET_BY_ID, PATCH } from "@/app/api/tickets/[id]/route";
 import { PATCH as COMPLETE } from "@/app/api/tickets/[id]/complete/route";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
@@ -25,6 +25,13 @@ function makePatchRequest(body: unknown): Request {
 function makeCompleteRequest(): Request {
   return new Request("http://localhost/api/tickets/1/complete", {
     method: "PATCH",
+  });
+}
+
+function makeDeleteRequest(body?: string): Request {
+  return new Request("http://localhost/api/tickets/1", {
+    method: "DELETE",
+    body,
   });
 }
 
@@ -981,6 +988,188 @@ describe("PATCH /api/tickets/:id/complete - 서버 오류", () => {
     expect(body.error).toMatchObject({
       code: "INTERNAL_ERROR",
       message: "티켓을 완료 처리하지 못했습니다",
+    });
+  });
+});
+
+describe("DELETE /api/tickets/:id", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  async function insertTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "삭제할 티켓",
+        status: "TODO",
+        position: 2048,
+        ...overrides,
+      })
+      .returning();
+    return row;
+  }
+
+  // TC-API-006-01: 존재하는 티켓 삭제
+  it("존재하는 티켓을 삭제하면 204와 빈 본문을 반환하고 이후 조회하면 404다", async () => {
+    const row = await insertTicket();
+
+    const res = await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
+
+    const after = await GET_BY_ID(
+      new Request("http://localhost"),
+      makeParams(String(row.id))
+    );
+    expect(after.status).toBe(404);
+  });
+
+  // TC-API-006-10: 모든 상태의 티켓 삭제
+  it.each(["BACKLOG", "TODO", "IN_PROGRESS", "DONE"])(
+    "%s 상태의 티켓도 204로 삭제된다",
+    async (status) => {
+      const row = await insertTicket({
+        status,
+        completedAt:
+          status === "DONE" ? new Date(Date.now() - 25 * 60 * 60 * 1000) : null,
+      });
+
+      const res = await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+
+      expect(res.status).toBe(204);
+    }
+  );
+
+  // TC-API-006-07: 본문이 있어도 동일 결과
+  it("깨진 JSON 본문을 보내도 본문 없는 요청과 같이 204를 반환한다", async () => {
+    const row = await insertTicket();
+
+    const res = await DELETE(
+      makeDeleteRequest("not json"),
+      makeParams(String(row.id))
+    );
+
+    expect(res.status).toBe(204);
+  });
+
+  // TC-API-006-09: 삭제 직후 보드 조회에 반영
+  it("삭제 직후 보드 조회의 어느 칼럼에도 삭제한 티켓이 없다", async () => {
+    const row = await insertTicket();
+    await insertTicket({ title: "남는 티켓", position: 1024 });
+
+    await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+    const res = await GET();
+    const body = await res.json();
+
+    const ids = [
+      ...body.BACKLOG,
+      ...body.TODO,
+      ...body.IN_PROGRESS,
+      ...body.DONE,
+    ].map((t: { id: number }) => t.id);
+    expect(ids).not.toContain(row.id);
+    expect(body.TODO).toHaveLength(1);
+  });
+
+  // TC-API-006-02: 삭제 후 DB에서 완전히 제거
+  it("삭제 후 DB를 직접 조회하면 행이 남아 있지 않다", async () => {
+    const row = await insertTicket();
+
+    await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+    const rows = await db.select().from(tickets).where(eq(tickets.id, row.id));
+
+    expect(rows).toHaveLength(0);
+  });
+
+  // TC-API-006-08: 삭제 후 다른 티켓 불변
+  it("삭제해도 같은 칼럼의 다른 티켓의 내용과 position은 그대로다", async () => {
+    const first = await insertTicket({ title: "첫째", position: 1024 });
+    const middle = await insertTicket({ title: "가운데", position: 2048 });
+    const last = await insertTicket({ title: "셋째", position: 3072 });
+
+    await DELETE(makeDeleteRequest(), makeParams(String(middle.id)));
+    const res = await GET();
+    const body = await res.json();
+
+    expect(body.TODO.map((t: { id: number }) => t.id)).toEqual([first.id, last.id]);
+    expect(body.TODO.map((t: { position: number }) => t.position)).toEqual([1024, 3072]);
+    expect(body.TODO.map((t: { title: string }) => t.title)).toEqual(["첫째", "셋째"]);
+  });
+
+  // TC-API-006-04: 존재하지 않는 티켓
+  it("존재하지 않는 id로 삭제하면 404 TICKET_NOT_FOUND를 반환한다", async () => {
+    const res = await DELETE(makeDeleteRequest(), makeParams("999999"));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toMatchObject({
+      code: "TICKET_NOT_FOUND",
+      message: "존재하지 않거나 삭제된 티켓입니다",
+    });
+  });
+
+  // TC-API-006-05: 이미 삭제된 티켓 재삭제
+  it("이미 삭제한 티켓을 다시 삭제하면 404 TICKET_NOT_FOUND를 반환한다", async () => {
+    const row = await insertTicket();
+    await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+
+    const res = await DELETE(makeDeleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error.code).toBe("TICKET_NOT_FOUND");
+  });
+
+  // TC-API-006-03: ID 형식 오류
+  it("id가 숫자가 아니면 400 INVALID_ID를 반환한다", async () => {
+    const res = await DELETE(makeDeleteRequest(), makeParams("abc"));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "INVALID_ID",
+      message: "유효하지 않은 티켓 ID입니다",
+    });
+  });
+
+  // TC-API-006-06: ID가 0 또는 음수
+  it.each(["0", "-1"])("id가 %s이면 400 INVALID_ID를 반환한다", async (id) => {
+    const row = await insertTicket();
+
+    const res = await DELETE(makeDeleteRequest(), makeParams(id));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error.code).toBe("INVALID_ID");
+    expect(await db.select().from(tickets).where(eq(tickets.id, row.id))).toHaveLength(1);
+  });
+});
+
+describe("DELETE /api/tickets/:id - 서버 오류", () => {
+  // TC-API-006-11
+  it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
+    let mockedDELETE!: typeof DELETE;
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/server/services/ticketService", () => ({
+        deleteTicket: jest.fn().mockRejectedValue(new Error("DB 연결 실패")),
+      }));
+      ({ DELETE: mockedDELETE } = await import("@/app/api/tickets/[id]/route"));
+    });
+
+    const res = await mockedDELETE(makeDeleteRequest(), makeParams("1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "티켓을 삭제하지 못했습니다",
     });
   });
 });
