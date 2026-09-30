@@ -17,7 +17,7 @@
 | US-003 칸반 보드 현황 파악 | FR-002, FR-008 | NFR-001, NFR-002 | TC-API-002-01~03, TC-API-008-02~05 | TC-COMP-002-01~03, TC-COMP-003-01, 08~10, TC-COMP-004-01~04 | TC-INT-002-01, 03 |
 | US-004 마감 초과 인지 | FR-008 | - | TC-API-008-02~09 | TC-COMP-001-04~05 | TC-INT-002-02 |
 | US-005 드래그앤드롭 상태 변경 | FR-007 | NFR-003, NFR-004 | TC-API-007-01~04, 11~14 | TC-COMP-003-02~03, 05~07, 11~14 | TC-INT-003-04, 06 |
-| US-006 할 일 완료 처리 | FR-005, FR-007 | - | TC-API-005-01~07, TC-API-007-05~10, TC-API-008-09 | TC-COMP-001-10~11, TC-COMP-003-04 | TC-INT-003-01~03, 05 |
+| US-006 할 일 완료 처리 | FR-005, FR-007 | - | TC-API-005-01~13, TC-API-007-05~10, TC-API-008-09 | TC-COMP-001-10~11, TC-COMP-003-04 | TC-INT-003-01~03, 05 |
 | US-007 할 일 수정 | FR-003, FR-004 | - | TC-API-003-01~06, TC-API-004-01~18, TC-API-008-06~08 | TC-COMP-001-08~09, TC-COMP-007-01~12 | TC-INT-004-01~02 |
 | US-008 할 일 삭제 | FR-006 | - | TC-API-006-01~05 | TC-COMP-008-01~06 | TC-INT-005-01~04 |
 
@@ -154,6 +154,10 @@
 | TC-API-005-03 | DONE 칼럼에 기존 티켓이 없는 상태에서 완료 처리 | DONE 칼럼 티켓 0개 | 200, `position=1024` |
 | TC-API-005-04 | DONE 칼럼에 기존 티켓이 있는 상태에서 완료 처리 | DONE 칼럼 최솟값 `position=1024`인 티켓 존재 | 200, 새 티켓 `position < 1024` (맨 위 배치) |
 | TC-API-005-07 | 이미 DONE인 티켓을 다시 완료 처리 (멱등) | `status="DONE"`, `completedAt`·`position`·`updatedAt`이 설정된 티켓 | 200, `completedAt`·`position`·`updatedAt`이 요청 전과 동일 (변경 없음), `isOverdue=false` |
+| TC-API-005-08 | BACKLOG 상태 티켓을 완료 처리 | `status="BACKLOG"`인 티켓 | 200, `status="DONE"`, `completedAt`=현재 시각, `startedAt`은 `null` 유지 |
+| TC-API-005-09 | 완료 처리 후 다른 필드는 변하지 않음 | 제목·설명·우선순위·시작예정일·종료예정일·`startedAt`이 채워진 티켓 | 200, 제목·설명·우선순위·시작예정일·종료예정일·`startedAt`·`createdAt`이 요청 전과 동일 |
+| TC-API-005-11 | 요청 본문이 있어도 동일하게 처리 | 본문 없는 요청과 깨진 JSON 문자열(`"not json"`) 본문 요청 | 두 경우 모두 200, 본문 없는 요청과 같은 결과 (본문은 무시됨) |
+| TC-API-005-12 | 완료 직후 보드 조회에 반영 | 티켓 완료 처리 후 `GET /api/tickets` 호출 | 200, `DONE` 배열에 해당 티켓이 포함되고 맨 앞에 위치 |
 
 **예외 케이스**
 
@@ -161,6 +165,8 @@
 |------|------|------|------|
 | TC-API-005-05 | ID 형식 오류 | `id="abc"` | 400, `error.code="INVALID_ID"` |
 | TC-API-005-06 | 존재하지 않는 티켓 완료 처리 시도 | `id=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않거나 삭제된 티켓입니다"` |
+| TC-API-005-10 | ID가 0 또는 음수 | `id="0"`, `id="-1"` | 400, `error.code="INVALID_ID"`, `error.message="유효하지 않은 티켓 ID입니다"` |
+| TC-API-005-13 | 서비스 계층 예외 | 서비스가 DB 오류로 예외를 던짐 | 500, `error.code="INTERNAL_ERROR"`, `error.message="티켓을 완료 처리하지 못했습니다"` |
 
 ---
 
