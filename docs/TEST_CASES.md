@@ -184,7 +184,7 @@
 | 번호 | 시나리오 | 조건 | 기대 결과 |
 |------|------|------|------|
 | TC-API-006-03 | ID 형식 오류 | `id="abc"` | 400, `error.code="INVALID_ID"` |
-| TC-API-006-04 | 존재하지 않는 티켓 삭제 시도 | `id=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않는 티켓입니다"` |
+| TC-API-006-04 | 존재하지 않는 티켓 삭제 시도 | `id=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않거나 삭제된 티켓입니다"` |
 | TC-API-006-05 | 이미 삭제된 티켓을 다시 삭제 시도 | 직전에 삭제한 `id` 재요청 | 404, `error.code="TICKET_NOT_FOUND"` |
 
 ---

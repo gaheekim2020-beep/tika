@@ -346,7 +346,7 @@
 
 **404 Not Found**
 ```json
-{ "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않는 티켓입니다" } }
+{ "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
 ```
 
 ---
