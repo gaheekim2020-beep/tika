@@ -174,9 +174,10 @@ describe("POST /api/tickets", () => {
 
   // TC-API-001-12: 과거 종료예정일
   it("dueDate가 과거 날짜이면 400 VALIDATION_ERROR(dueDate)를 반환한다", async () => {
-    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 10);
+    // 검증 로직(isTodayOrAfter)이 로컬 날짜 기준이므로 UTC(toISOString)가 아닌 로컬 날짜로 계산한다
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yesterday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     const res = await POST(
       makeRequest({ title: "과거 마감일 티켓", dueDate: yesterday })
