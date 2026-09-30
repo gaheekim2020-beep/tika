@@ -18,7 +18,7 @@
 | US-004 마감 초과 인지 | FR-008 | - | TC-API-008-02~09 | TC-COMP-001-04~05 | TC-INT-002-02 |
 | US-005 드래그앤드롭 상태 변경 | FR-007 | NFR-003, NFR-004 | TC-API-007-01~04, 11~14 | TC-COMP-003-02~03, 05~07, 11~14 | TC-INT-003-04, 06 |
 | US-006 할 일 완료 처리 | FR-005, FR-007 | - | TC-API-005-01~06, TC-API-007-05~10, TC-API-008-09 | TC-COMP-001-10~11, TC-COMP-003-04 | TC-INT-003-01~03, 05 |
-| US-007 할 일 수정 | FR-003, FR-004 | - | TC-API-003-01~06, TC-API-004-01~12, TC-API-008-06~08 | TC-COMP-001-08~09, TC-COMP-007-01~12 | TC-INT-004-01~02 |
+| US-007 할 일 수정 | FR-003, FR-004 | - | TC-API-003-01~06, TC-API-004-01~18, TC-API-008-06~08 | TC-COMP-001-08~09, TC-COMP-007-01~12 | TC-INT-004-01~02 |
 | US-008 할 일 삭제 | FR-006 | - | TC-API-006-01~05 | TC-COMP-008-01~06 | TC-INT-005-01~04 |
 
 - NFR-001(성능)은 US-003 보드 초기 로드에 관련되나 별도 성능 측정 테스트(Lighthouse 등)가 필요해 이 문서의 기능 테스트 케이스로는 커버하지 않는다.
@@ -134,6 +134,12 @@
 | TC-API-004-10 | 과거 날짜로 종료예정일 수정 | `dueDate`=어제 | 400, `error.field="dueDate"` |
 | TC-API-004-11 | 존재하지 않는 티켓 수정 시도 | `id=999999` | 404, `error.code="TICKET_NOT_FOUND"` |
 | TC-API-004-12 | `status`/`position` 필드를 body에 포함해 전달 | `{ status: "DONE" }` | 이 API에서는 처리 대상이 아니므로 무시됨(또는 Zod 스키마에 없는 필드로 거부) — 실제 상태/순서는 변경되지 않음 |
+| TC-API-004-13 | ID가 정수가 아님 | `id="abc"` | 400, `error.code="INVALID_ID"`, `error.message="유효하지 않은 티켓 ID입니다"` |
+| TC-API-004-14 | ID가 음수 또는 0 | `id=-1` 또는 `id=0` | 400, `error.code="INVALID_ID"` |
+| TC-API-004-15 | `dueDate`를 `null`로 명시적 초기화 | 기한이 지난 미완료 티켓에 `{ dueDate: null }` | 200, `dueDate=null`, `isOverdue=false`로 재연산됨 |
+| TC-API-004-16 | 여러 필드 중 하나만 유효하지 않음 | `{ title: "정상", priority: "URGENT" }` | 400, `error.field="priority"`, `title`을 포함해 어떤 필드도 반영되지 않음 |
+| TC-API-004-17 | 요청 본문이 JSON이 아니거나 객체가 아님 | body=`not json` 또는 `[]` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="요청 본문이 올바른 JSON 형식이 아닙니다"` |
+| TC-API-004-18 | 서비스 계층에서 예외 발생 | DB 오류 등 예상치 못한 예외 | 500, `error.code="INTERNAL_ERROR"`, `error.message="티켓을 수정하지 못했습니다"` |
 
 ---
 

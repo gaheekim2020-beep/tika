@@ -4,6 +4,7 @@ import {
   getBoardData,
   getNextBacklogPosition,
   getTicketById,
+  updateTicket,
 } from "@/server/services/ticketService";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
@@ -170,6 +171,147 @@ describe("ticketService", () => {
     it("존재하지 않는 id로 조회하면 null을 반환한다", async () => {
       const ticket = await getTicketById(999999);
       expect(ticket).toBeNull();
+    });
+  });
+
+  describe("updateTicket", () => {
+    async function insertFullTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+      const [row] = await db
+        .insert(tickets)
+        .values({
+          title: "원래 제목",
+          description: "원래 설명",
+          status: TICKET_STATUS.TODO,
+          priority: "HIGH",
+          position: 2048,
+          plannedStartDate: new Date("2026-10-01"),
+          dueDate: new Date("2099-12-31"),
+          updatedAt: new Date(Date.now() - 60 * 1000),
+          ...overrides,
+        })
+        .returning();
+      return row;
+    }
+
+    it("제목만 수정하면 제목만 바뀌고 나머지 필드는 유지된다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, { title: "수정된 제목" });
+
+      expect(ticket).toMatchObject({
+        id: row.id,
+        title: "수정된 제목",
+        description: "원래 설명",
+        priority: "HIGH",
+        status: TICKET_STATUS.TODO,
+        position: 2048,
+        plannedStartDate: "2026-10-01",
+        dueDate: "2099-12-31",
+      });
+    });
+
+    it("여러 필드를 동시에 수정하면 전달한 필드가 모두 반영된다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, {
+        title: "새 제목",
+        description: "새 설명",
+        priority: "LOW",
+        plannedStartDate: "2026-11-01",
+        dueDate: "2099-11-30",
+      });
+
+      expect(ticket).toMatchObject({
+        title: "새 제목",
+        description: "새 설명",
+        priority: "LOW",
+        plannedStartDate: "2026-11-01",
+        dueDate: "2099-11-30",
+      });
+    });
+
+    it("수정하면 updatedAt이 수정 전보다 이후 시각으로 갱신된다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, { title: "수정된 제목" });
+
+      expect(ticket?.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime());
+    });
+
+    it("종료예정일을 과거로 수정하면 미완료 티켓의 isOverdue가 true로 재계산된다", async () => {
+      const row = await insertFullTicket();
+      expect((await getTicketById(row.id))?.isOverdue).toBe(false);
+
+      const ticket = await updateTicket(row.id, { dueDate: "2020-01-01" });
+
+      expect(ticket?.dueDate).toBe("2020-01-01");
+      expect(ticket?.isOverdue).toBe(true);
+    });
+
+    it("DONE 티켓을 수정해도 status와 completedAt은 유지된다", async () => {
+      const completedAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+      const row = await insertFullTicket({
+        status: TICKET_STATUS.DONE,
+        completedAt,
+      });
+
+      const ticket = await updateTicket(row.id, { title: "완료 후 수정" });
+
+      expect(ticket?.title).toBe("완료 후 수정");
+      expect(ticket?.status).toBe(TICKET_STATUS.DONE);
+      expect(ticket?.completedAt?.getTime()).toBe(completedAt.getTime());
+    });
+
+    it("description을 null로 전달하면 설명이 비워진다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, { description: null });
+
+      expect(ticket?.description).toBeNull();
+      expect(ticket?.title).toBe("원래 제목");
+    });
+
+    it("plannedStartDate를 null로 전달하면 시작예정일이 비워진다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, { plannedStartDate: null });
+
+      expect(ticket?.plannedStartDate).toBeNull();
+      expect(ticket?.dueDate).toBe("2099-12-31");
+    });
+
+    it("dueDate를 null로 전달하면 종료예정일이 비워지고 isOverdue가 false로 재계산된다", async () => {
+      const row = await insertFullTicket({ dueDate: new Date("2020-01-01") });
+      expect((await getTicketById(row.id))?.isOverdue).toBe(true);
+
+      const ticket = await updateTicket(row.id, { dueDate: null });
+
+      expect(ticket?.dueDate).toBeNull();
+      expect(ticket?.isOverdue).toBe(false);
+    });
+
+    it("빈 입력이면 기존 값은 그대로이고 updatedAt만 갱신된다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(row.id, {});
+
+      expect(ticket).toMatchObject({
+        title: "원래 제목",
+        description: "원래 설명",
+        priority: "HIGH",
+        plannedStartDate: "2026-10-01",
+        dueDate: "2099-12-31",
+      });
+      expect(ticket?.updatedAt.getTime()).toBeGreaterThan(row.updatedAt.getTime());
+    });
+
+    it("존재하지 않는 id면 null을 반환하고 다른 티켓은 변경되지 않는다", async () => {
+      const row = await insertFullTicket();
+
+      const ticket = await updateTicket(999999, { title: "없는 티켓 수정" });
+
+      expect(ticket).toBeNull();
+      expect((await getTicketById(row.id))?.title).toBe("원래 제목");
     });
   });
 });
