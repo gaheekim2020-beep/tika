@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { GET, POST } from "@/app/api/tickets/route";
 import { GET as GET_BY_ID, PATCH } from "@/app/api/tickets/[id]/route";
+import { PATCH as COMPLETE } from "@/app/api/tickets/[id]/complete/route";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
@@ -18,6 +19,12 @@ function makePatchRequest(body: unknown): Request {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
+  });
+}
+
+function makeCompleteRequest(): Request {
+  return new Request("http://localhost/api/tickets/1/complete", {
+    method: "PATCH",
   });
 }
 
@@ -698,6 +705,216 @@ describe("PATCH /api/tickets/:id", () => {
   });
 });
 
+describe("PATCH /api/tickets/:id/complete", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  async function insertTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "완료할 티켓",
+        description: "원래 설명",
+        status: "TODO",
+        priority: "HIGH",
+        position: 2048,
+        plannedStartDate: new Date("2026-10-01"),
+        dueDate: new Date("2099-12-31"),
+        startedAt: new Date(Date.now() - 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 60 * 1000),
+        ...overrides,
+      })
+      .returning();
+    return row;
+  }
+
+  // TC-API-005-01: TODO 상태 티켓 완료
+  it("TODO 티켓을 완료하면 200과 함께 DONE, completedAt·updatedAt 갱신, isOverdue=false를 반환한다", async () => {
+    const row = await insertTicket();
+
+    const before = Date.now();
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const after = Date.now();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(new Date(body.completedAt).getTime()).toBeGreaterThanOrEqual(before);
+    expect(new Date(body.completedAt).getTime()).toBeLessThanOrEqual(after);
+    expect(body.updatedAt).toBe(body.completedAt);
+    expect(new Date(body.updatedAt).getTime()).toBeGreaterThan(row.updatedAt.getTime());
+    expect(body.isOverdue).toBe(false);
+  });
+
+  // TC-API-005-02: IN_PROGRESS 상태 티켓 완료
+  it("IN_PROGRESS 티켓을 완료하면 200과 함께 DONE, completedAt 설정을 반환한다", async () => {
+    const row = await insertTicket({ status: "IN_PROGRESS" });
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(body.completedAt).not.toBeNull();
+  });
+
+  // TC-API-005-08: BACKLOG 상태 티켓 완료
+  it("BACKLOG 티켓을 완료하면 200과 함께 DONE이 되고 startedAt은 null로 유지된다", async () => {
+    const row = await insertTicket({ status: "BACKLOG", startedAt: null });
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(body.completedAt).not.toBeNull();
+    expect(body.startedAt).toBeNull();
+  });
+
+  // TC-API-005-09: 다른 필드는 변하지 않음
+  it("완료해도 제목·설명·우선순위·일정·startedAt·createdAt은 요청 전과 같다", async () => {
+    const row = await insertTicket();
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      id: row.id,
+      title: "완료할 티켓",
+      description: "원래 설명",
+      priority: "HIGH",
+      plannedStartDate: "2026-10-01",
+      dueDate: "2099-12-31",
+    });
+    expect(body.startedAt).toBe(row.startedAt!.toISOString());
+    expect(body.createdAt).toBe(row.createdAt.toISOString());
+  });
+
+  // TC-API-005-07: 이미 DONE인 티켓 (멱등)
+  it("이미 DONE인 티켓을 다시 완료하면 200이고 completedAt·position·updatedAt이 변하지 않는다", async () => {
+    const past = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const row = await insertTicket({
+      status: "DONE",
+      position: 500,
+      completedAt: past,
+      updatedAt: past,
+    });
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(body.completedAt).toBe(past.toISOString());
+    expect(body.updatedAt).toBe(past.toISOString());
+    expect(body.position).toBe(500);
+    expect(body.isOverdue).toBe(false);
+  });
+
+  // TC-API-005-11: 본문이 있어도 무시된다
+  it("깨진 JSON 본문을 보내도 본문 없는 요청과 같이 200으로 처리된다", async () => {
+    const row = await insertTicket();
+
+    const res = await COMPLETE(
+      new Request("http://localhost/api/tickets/1/complete", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: "not json",
+      }),
+      makeParams(String(row.id))
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(body.completedAt).not.toBeNull();
+  });
+
+  // TC-API-005-12: 완료 직후 보드에 반영
+  it("완료 직후 보드 조회의 DONE 배열 맨 앞에 나타난다", async () => {
+    const row = await insertTicket();
+
+    await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const res = await GET();
+    const board = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(board.DONE[0].id).toBe(row.id);
+    expect(board.TODO).toHaveLength(0);
+  });
+
+  // TC-API-005-03: DONE 칼럼이 비어 있는 상태
+  it("DONE 칼럼에 티켓이 없으면 완료된 티켓의 position은 1024다", async () => {
+    const row = await insertTicket();
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.position).toBe(1024);
+  });
+
+  // TC-API-005-04: DONE 칼럼에 기존 티켓이 있는 상태
+  it("DONE 칼럼 최솟값이 1024이면 완료된 티켓의 position은 1024보다 작다 (맨 위 배치)", async () => {
+    await insertTicket({
+      title: "이미 완료",
+      status: "DONE",
+      position: 1024,
+      completedAt: new Date(),
+    });
+    const row = await insertTicket();
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.position).toBeLessThan(1024);
+  });
+
+  // TC-API-008-09: 종료예정일이 지난 티켓 완료 → isOverdue=false
+  it("종료예정일이 지난 티켓을 완료하면 isOverdue가 false로 반환된다", async () => {
+    const row = await insertTicket({ dueDate: new Date("2020-01-01") });
+
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(String(row.id)));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.status).toBe("DONE");
+    expect(body.dueDate).toBe("2020-01-01");
+    expect(body.isOverdue).toBe(false);
+  });
+
+  // TC-API-005-05/10: 잘못된 ID 형식
+  it.each(["abc", "-1", "0"])("id=%s이면 400 INVALID_ID를 반환한다", async (id) => {
+    const res = await COMPLETE(makeCompleteRequest(), makeParams(id));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toMatchObject({
+      code: "INVALID_ID",
+      message: "유효하지 않은 티켓 ID입니다",
+    });
+  });
+
+  // TC-API-005-06: 존재하지 않는 티켓
+  it("존재하지 않는 id로 완료를 요청하면 404 TICKET_NOT_FOUND를 반환한다", async () => {
+    const res = await COMPLETE(makeCompleteRequest(), makeParams("999999"));
+    const body = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(body.error).toMatchObject({
+      code: "TICKET_NOT_FOUND",
+      message: "존재하지 않거나 삭제된 티켓입니다",
+    });
+  });
+});
+
 describe("GET /api/tickets/:id - 서버 오류", () => {
   it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
     let mockedGET!: typeof GET_BY_ID;
@@ -739,6 +956,31 @@ describe("PATCH /api/tickets/:id - 서버 오류", () => {
     expect(body.error).toMatchObject({
       code: "INTERNAL_ERROR",
       message: "티켓을 수정하지 못했습니다",
+    });
+  });
+});
+
+describe("PATCH /api/tickets/:id/complete - 서버 오류", () => {
+  // TC-API-005-13
+  it("서비스 계층에서 예외가 발생하면 500 INTERNAL_ERROR를 반환한다", async () => {
+    let mockedCOMPLETE!: typeof COMPLETE;
+
+    await jest.isolateModulesAsync(async () => {
+      jest.doMock("@/server/services/ticketService", () => ({
+        completeTicket: jest.fn().mockRejectedValue(new Error("DB 연결 실패")),
+      }));
+      ({ PATCH: mockedCOMPLETE } = await import(
+        "@/app/api/tickets/[id]/complete/route"
+      ));
+    });
+
+    const res = await mockedCOMPLETE(makeCompleteRequest(), makeParams("1"));
+    const body = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(body.error).toMatchObject({
+      code: "INTERNAL_ERROR",
+      message: "티켓을 완료 처리하지 못했습니다",
     });
   });
 });
