@@ -204,6 +204,11 @@
 { "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
 ```
 
+**500 Internal Server Error**
+```json
+{ "error": { "code": "INTERNAL_ERROR", "message": "티켓을 불러오지 못했습니다" } }
+```
+
 ---
 
 ## 4. `PATCH /api/tickets/:id` — 티켓 수정
@@ -265,6 +270,11 @@
 { "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
 ```
 
+**500 Internal Server Error**
+```json
+{ "error": { "code": "INTERNAL_ERROR", "message": "티켓을 수정하지 못했습니다" } }
+```
+
 ---
 
 ## 5. `PATCH /api/tickets/:id/complete` — 티켓 완료 처리
@@ -302,6 +312,11 @@
 **404 Not Found**
 ```json
 { "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
+```
+
+**500 Internal Server Error**
+```json
+{ "error": { "code": "INTERNAL_ERROR", "message": "티켓을 완료 처리하지 못했습니다" } }
 ```
 
 ---
