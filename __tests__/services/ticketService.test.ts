@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import {
   calculateIsOverdue,
+  completeTicket,
   getBoardData,
   getNextBacklogPosition,
   getTicketById,
@@ -312,6 +313,191 @@ describe("ticketService", () => {
 
       expect(ticket).toBeNull();
       expect((await getTicketById(row.id))?.title).toBe("원래 제목");
+    });
+  });
+
+  describe("completeTicket", () => {
+    async function insertTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+      const [row] = await db
+        .insert(tickets)
+        .values({
+          title: "완료할 티켓",
+          description: "원래 설명",
+          status: TICKET_STATUS.TODO,
+          priority: "HIGH",
+          position: 2048,
+          plannedStartDate: new Date("2026-10-01"),
+          dueDate: new Date("2099-12-31"),
+          startedAt: new Date(Date.now() - 60 * 60 * 1000),
+          updatedAt: new Date(Date.now() - 60 * 1000),
+          ...overrides,
+        })
+        .returning();
+      return row;
+    }
+
+    it("TODO 티켓을 완료하면 DONE이 되고 completedAt이 요청 전후 시각 사이이며 updatedAt과 같다", async () => {
+      const row = await insertTicket();
+
+      const before = new Date();
+      const ticket = await completeTicket(row.id);
+      const after = new Date();
+
+      expect(ticket?.status).toBe(TICKET_STATUS.DONE);
+      expect(ticket?.completedAt).not.toBeNull();
+      expect(ticket!.completedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+      expect(ticket!.completedAt!.getTime()).toBeLessThanOrEqual(after.getTime());
+      expect(ticket?.updatedAt.getTime()).toBe(ticket!.completedAt!.getTime());
+      expect(ticket?.isOverdue).toBe(false);
+    });
+
+    it("IN_PROGRESS 티켓을 완료하면 DONE이 되고 completedAt이 설정된다", async () => {
+      const row = await insertTicket({ status: TICKET_STATUS.IN_PROGRESS });
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.status).toBe(TICKET_STATUS.DONE);
+      expect(ticket?.completedAt).not.toBeNull();
+    });
+
+    it("BACKLOG 티켓을 완료하면 DONE이 되고 startedAt은 null로 유지된다", async () => {
+      const row = await insertTicket({
+        status: TICKET_STATUS.BACKLOG,
+        startedAt: null,
+      });
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.status).toBe(TICKET_STATUS.DONE);
+      expect(ticket?.completedAt).not.toBeNull();
+      expect(ticket?.startedAt).toBeNull();
+    });
+
+    it("완료해도 제목·설명·우선순위·일정·startedAt·createdAt은 변하지 않는다", async () => {
+      const row = await insertTicket();
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket).toMatchObject({
+        id: row.id,
+        title: "완료할 티켓",
+        description: "원래 설명",
+        priority: "HIGH",
+        plannedStartDate: "2026-10-01",
+        dueDate: "2099-12-31",
+      });
+      expect(ticket?.startedAt?.getTime()).toBe(row.startedAt!.getTime());
+      expect(ticket?.createdAt.getTime()).toBe(row.createdAt.getTime());
+    });
+
+    // TC-API-005-07: 이미 DONE인 티켓은 값을 바꾸지 않고 그대로 반환한다 (멱등)
+    it("이미 DONE인 티켓을 다시 완료해도 completedAt·position·updatedAt이 바뀌지 않는다", async () => {
+      const past = new Date(Date.now() - 2 * 60 * 60 * 1000);
+      const row = await insertTicket({
+        status: TICKET_STATUS.DONE,
+        position: 500,
+        completedAt: past,
+        updatedAt: past,
+      });
+
+      const ticket = await completeTicket(row.id);
+      const stored = await getTicketById(row.id);
+
+      expect(ticket?.status).toBe(TICKET_STATUS.DONE);
+      expect(ticket?.completedAt?.getTime()).toBe(past.getTime());
+      expect(ticket?.updatedAt.getTime()).toBe(past.getTime());
+      expect(ticket?.position).toBe(500);
+      expect(stored?.completedAt?.getTime()).toBe(past.getTime());
+      expect(stored?.updatedAt.getTime()).toBe(past.getTime());
+      expect(stored?.position).toBe(500);
+    });
+
+    it("같은 티켓을 동시에 두 번 완료해도 completedAt·position이 덮어써지지 않는다", async () => {
+      const row = await insertTicket();
+
+      const [first, second] = await Promise.all([
+        completeTicket(row.id),
+        completeTicket(row.id),
+      ]);
+      const stored = await getTicketById(row.id);
+
+      expect(first?.completedAt?.getTime()).toBe(second?.completedAt?.getTime());
+      expect(first?.position).toBe(second?.position);
+      expect(stored?.completedAt?.getTime()).toBe(first?.completedAt?.getTime());
+      expect(stored?.position).toBe(first?.position);
+    });
+
+    // TC-API-005-03: DONE 칼럼이 비어 있으면 1024
+    it("DONE 칼럼에 티켓이 없으면 완료된 티켓의 position은 1024다", async () => {
+      const row = await insertTicket();
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.position).toBe(1024);
+    });
+
+    // TC-API-005-04: 기존 최솟값 - 1024
+    it("DONE 칼럼 최솟값이 1024이면 완료된 티켓의 position은 0으로 맨 위에 배치된다", async () => {
+      await insertTicket({
+        title: "이미 완료",
+        status: TICKET_STATUS.DONE,
+        position: 1024,
+        completedAt: new Date(),
+      });
+      const row = await insertTicket();
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.position).toBe(0);
+      expect(ticket!.position).toBeLessThan(1024);
+    });
+
+    it("티켓을 연달아 완료하면 나중에 완료한 티켓의 position이 더 작다", async () => {
+      const first = await insertTicket({ title: "먼저" });
+      const second = await insertTicket({ title: "나중" });
+
+      const firstDone = await completeTicket(first.id);
+      const secondDone = await completeTicket(second.id);
+
+      expect(firstDone?.position).toBe(1024);
+      expect(secondDone?.position).toBe(0);
+    });
+
+    it("24시간이 지나 보드에서 숨겨진 DONE 행도 최솟값 계산에 포함된다", async () => {
+      await insertTicket({
+        title: "오래된 완료",
+        status: TICKET_STATUS.DONE,
+        position: 500,
+        completedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      });
+      const row = await insertTicket();
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.position).toBe(-524);
+    });
+
+    // TC-API-008-09: 완료 상태가 우선 적용되어 isOverdue=false
+    it("종료예정일이 지난 미완료 티켓을 완료하면 isOverdue가 false다", async () => {
+      const row = await insertTicket({ dueDate: new Date("2020-01-01") });
+      expect((await getTicketById(row.id))?.isOverdue).toBe(true);
+
+      const ticket = await completeTicket(row.id);
+
+      expect(ticket?.dueDate).toBe("2020-01-01");
+      expect(ticket?.isOverdue).toBe(false);
+    });
+
+    it("존재하지 않는 id면 null을 반환하고 다른 티켓은 변경되지 않는다", async () => {
+      const row = await insertTicket();
+
+      const ticket = await completeTicket(999999);
+      const stored = await getTicketById(row.id);
+
+      expect(ticket).toBeNull();
+      expect(stored?.status).toBe(TICKET_STATUS.TODO);
+      expect(stored?.completedAt).toBeNull();
+      expect(stored?.position).toBe(2048);
     });
   });
 });

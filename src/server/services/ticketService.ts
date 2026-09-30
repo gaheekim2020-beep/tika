@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { tickets, type NewTicketRow, type TicketRow } from "@/server/db/schema";
 import {
@@ -33,11 +33,11 @@ function toTicketWithMeta(row: TicketRow): TicketWithMeta {
   };
 }
 
-export async function getNextBacklogPosition(): Promise<number> {
+async function getNextTopPosition(status: TicketStatus): Promise<number> {
   const [lowest] = await db
     .select({ position: tickets.position })
     .from(tickets)
-    .where(eq(tickets.status, TICKET_STATUS.BACKLOG))
+    .where(eq(tickets.status, status))
     .orderBy(asc(tickets.position))
     .limit(1);
 
@@ -45,6 +45,10 @@ export async function getNextBacklogPosition(): Promise<number> {
     return 1024;
   }
   return lowest.position - 1024;
+}
+
+export async function getNextBacklogPosition(): Promise<number> {
+  return getNextTopPosition(TICKET_STATUS.BACKLOG);
 }
 
 export function calculateIsOverdue(
@@ -111,6 +115,31 @@ export async function updateTicket(
     .returning();
 
   return row ? toTicketWithMeta(row) : null;
+}
+
+export async function completeTicket(id: number): Promise<TicketWithMeta | null> {
+  // completedAt은 getBoardData의 24시간 필터와 같은 JS 시각 기준이어야 하므로 DB now()를 쓰지 않는다
+  const now = new Date();
+  const position = await getNextTopPosition(TICKET_STATUS.DONE);
+
+  // 이미 DONE인 티켓은 갱신 대상에서 빠지므로 동시 요청에도 completedAt/position을 덮어쓰지 않는다
+  const [updated] = await db
+    .update(tickets)
+    .set({
+      status: TICKET_STATUS.DONE,
+      completedAt: now,
+      position,
+      updatedAt: now,
+    })
+    .where(and(eq(tickets.id, id), ne(tickets.status, TICKET_STATUS.DONE)))
+    .returning();
+
+  if (updated) {
+    return toTicketWithMeta(updated);
+  }
+
+  // 갱신된 행이 없으면 티켓이 없거나 이미 DONE이다
+  return getTicketById(id);
 }
 
 export async function getBoardData(): Promise<BoardData> {
