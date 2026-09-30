@@ -32,6 +32,6 @@
 ## Notes
 
 - `[NEEDS CLARIFICATION]` 마커는 없다. 아래 항목은 `/speckit-plan` 전에 처리가 필요하다 (spec.md Assumptions 참조).
-  - 이미 DONE인 티켓에 완료 요청 시 "성공 + 값 변경 없음"으로 확정됨. API_SPEC.md 5번 처리 규칙과 TEST_CASES.md에 이 동작을 반영해야 함
+  - 이미 DONE인 티켓에 완료 요청 시 "성공 + 값 변경 없음"으로 확정. API_SPEC §5, REQUIREMENTS FR-005, TC-API-005-07에 반영 완료
   - 404 문구는 "존재하지 않거나 삭제된 티켓입니다"로 확정. API_SPEC §5, TC-API-005-06, REQUIREMENTS FR-005에 반영 완료
 - 스펙 본문에는 "순서값 1024" 같은 수치가 등장한다. 이는 구현 세부가 아니라 API_SPEC/DATA_MODEL이 계약으로 정의한 관찰 가능한 결과값이라 유지했다.

@@ -284,6 +284,7 @@
 - DONE으로 이동: `status` = `DONE`, `completedAt` = 현재 시각
 - DONE 이동 시 `position`은 DONE 칼럼 내 최솟값 - 1024 (맨 위 배치, 티켓이 없으면 1024)
 - `updatedAt` 자동 갱신
+- 이미 `status === 'DONE'`인 티켓에 요청하면 오류 없이 `200 OK`로 처리하며, `completedAt`·`position`·`updatedAt`을 포함해 어떤 값도 변경하지 않고 현재 티켓을 그대로 반환 (멱등)
 - `status === 'DONE'`이므로 응답의 `isOverdue`는 항상 `false`
 - Done 칼럼 노출은 `completedAt` 기준 24시간 이내로 제한 (목록 조회 시 적용, FR-002)
 

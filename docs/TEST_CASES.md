@@ -17,7 +17,7 @@
 | US-003 칸반 보드 현황 파악 | FR-002, FR-008 | NFR-001, NFR-002 | TC-API-002-01~03, TC-API-008-02~05 | TC-COMP-002-01~03, TC-COMP-003-01, 08~10, TC-COMP-004-01~04 | TC-INT-002-01, 03 |
 | US-004 마감 초과 인지 | FR-008 | - | TC-API-008-02~09 | TC-COMP-001-04~05 | TC-INT-002-02 |
 | US-005 드래그앤드롭 상태 변경 | FR-007 | NFR-003, NFR-004 | TC-API-007-01~04, 11~14 | TC-COMP-003-02~03, 05~07, 11~14 | TC-INT-003-04, 06 |
-| US-006 할 일 완료 처리 | FR-005, FR-007 | - | TC-API-005-01~06, TC-API-007-05~10, TC-API-008-09 | TC-COMP-001-10~11, TC-COMP-003-04 | TC-INT-003-01~03, 05 |
+| US-006 할 일 완료 처리 | FR-005, FR-007 | - | TC-API-005-01~07, TC-API-007-05~10, TC-API-008-09 | TC-COMP-001-10~11, TC-COMP-003-04 | TC-INT-003-01~03, 05 |
 | US-007 할 일 수정 | FR-003, FR-004 | - | TC-API-003-01~06, TC-API-004-01~18, TC-API-008-06~08 | TC-COMP-001-08~09, TC-COMP-007-01~12 | TC-INT-004-01~02 |
 | US-008 할 일 삭제 | FR-006 | - | TC-API-006-01~05 | TC-COMP-008-01~06 | TC-INT-005-01~04 |
 
@@ -153,6 +153,7 @@
 | TC-API-005-02 | IN_PROGRESS 상태 티켓을 완료 처리 | `status="IN_PROGRESS"`인 티켓 | 200, `status="DONE"`, `completedAt`=현재 시각 |
 | TC-API-005-03 | DONE 칼럼에 기존 티켓이 없는 상태에서 완료 처리 | DONE 칼럼 티켓 0개 | 200, `position=1024` |
 | TC-API-005-04 | DONE 칼럼에 기존 티켓이 있는 상태에서 완료 처리 | DONE 칼럼 최솟값 `position=1024`인 티켓 존재 | 200, 새 티켓 `position < 1024` (맨 위 배치) |
+| TC-API-005-07 | 이미 DONE인 티켓을 다시 완료 처리 (멱등) | `status="DONE"`, `completedAt`·`position`·`updatedAt`이 설정된 티켓 | 200, `completedAt`·`position`·`updatedAt`이 요청 전과 동일 (변경 없음), `isOverdue=false` |
 
 **예외 케이스**
 
