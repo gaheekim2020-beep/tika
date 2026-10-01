@@ -87,7 +87,7 @@ Technical Context에 `NEEDS CLARIFICATION`은 없었다(요청 `position` 해석
 |------|------|------|
 | `ticketId` | 양의 정수 | "유효하지 않은 티켓 ID입니다" (`code`는 `VALIDATION_ERROR`, `field="ticketId"`) |
 | `status` | `BACKLOG`/`TODO`/`IN_PROGRESS` 중 하나 | "상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요" |
-| `position` | 정수, 32비트 정수 범위 | "위치는 정수로 입력해주세요" (`field="position"`) |
+| `position` | 정수, 32비트 정수 범위 | "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요" (`field="position"`) |
 
 본문이 JSON이 아니거나 객체가 아니면 `PATCH /api/tickets/:id`(004)와 같은 응답 — `code=VALIDATION_ERROR`,
 `field` 없음, "요청 본문이 올바른 JSON 형식이 아닙니다"를 반환한다. 정의되지 않은 키는 제거한다(004와

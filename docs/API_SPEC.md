@@ -375,7 +375,7 @@
 |------|------|------|------|
 | ticketId | number | O | 이동할 티켓 ID |
 | status | enum | O | 이동 대상 칼럼 (`BACKLOG`, `TODO`, `IN_PROGRESS`만 허용, `DONE` 불가) |
-| position | number | O | 칼럼 내 새 위치. 클라이언트가 아래 재계산 규칙대로 계산한 최종 순서값(정수) |
+| position | number | O | 칼럼 내 새 위치. 클라이언트가 아래 재계산 규칙대로 계산한 최종 순서값(정수, -2147483648 ~ 2147483647) |
 
 > `DONE`으로의 이동은 이 API에서 허용하지 않는다. `PATCH /api/tickets/:id/complete` (FR-005)를 사용한다.
 
@@ -414,7 +414,7 @@
 { "error": { "code": "VALIDATION_ERROR", "field": "ticketId", "message": "유효하지 않은 티켓 ID입니다" } }
 ```
 ```json
-{ "error": { "code": "VALIDATION_ERROR", "field": "position", "message": "위치는 정수로 입력해주세요" } }
+{ "error": { "code": "VALIDATION_ERROR", "field": "position", "message": "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요" } }
 ```
 
 **400 Bad Request** — 본문이 JSON이 아니거나 객체가 아님 (`error.field` 없음)

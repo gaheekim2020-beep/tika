@@ -19,7 +19,7 @@
 export const reorderTicketSchema = z.object({
   ticketId: /* 양의 정수, 메시지 "유효하지 않은 티켓 ID입니다" */,
   status:   /* BACKLOG | TODO | IN_PROGRESS, 메시지 "상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요" */,
-  position: /* 정수, 32비트 범위, 메시지 "위치는 정수로 입력해주세요" */,
+  position: /* 정수, 32비트 범위, 메시지 "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요" */,
 });
 // z.infer 결과는 ReorderTicketInput과 형태가 일치해야 한다 (constitution 원칙 I)
 ```

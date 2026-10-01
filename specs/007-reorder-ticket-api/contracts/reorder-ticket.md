@@ -65,7 +65,7 @@
 ```
 
 ```json
-{ "error": { "code": "VALIDATION_ERROR", "field": "position", "message": "위치는 정수로 입력해주세요" } }
+{ "error": { "code": "VALIDATION_ERROR", "field": "position", "message": "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요" } }
 ```
 
 ### 400 Bad Request — 본문이 JSON이 아니거나 객체가 아님

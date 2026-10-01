@@ -222,7 +222,7 @@
 | TC-API-007-13 | 존재하지 않는 `ticketId` | `ticketId=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않거나 삭제된 티켓입니다"` |
 | TC-API-007-14 | 트랜잭션 도중 일부만 반영되고 나머지가 실패하는 상황 방지 (원자성) | DB 오류 mock: `status` UPDATE는 성공, 이어지는 `position` UPDATE에서 실패하도록 조작 | `status`/`position` 어느 쪽도 반영되지 않음 (전체 롤백), 500 또는 적절한 에러 응답 |
 | TC-API-007-15 | `ticketId` 형식 오류 | `ticketId`가 `0`, `-1`, `"abc"`, 누락 | 400, `error.code="VALIDATION_ERROR"`, `error.field="ticketId"`, `error.message="유효하지 않은 티켓 ID입니다"` |
-| TC-API-007-16 | `position` 형식 오류 | `position`이 누락, `"abc"`, `1.5`, 32비트 범위 초과 | 400, `error.code="VALIDATION_ERROR"`, `error.field="position"`, `error.message="위치는 정수로 입력해주세요"` |
+| TC-API-007-16 | `position` 형식 오류 | `position`이 누락, `"abc"`, `1.5`, 32비트 범위 초과 | 400, `error.code="VALIDATION_ERROR"`, `error.field="position"`, `error.message="위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요"` |
 | TC-API-007-17 | 요청 본문이 JSON이 아니거나 객체가 아님 | body=`not json` 또는 `[]` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="요청 본문이 올바른 JSON 형식이 아닙니다"` |
 | TC-API-007-18 | `status` 누락 | `{ ticketId: 1, position: 1024 }` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요"` |
 | TC-API-007-19 | 같은 칼럼의 같은 위치로 이동 | 이미 `position=1024`인 티켓을 같은 칼럼·같은 `position`으로 요청 | 200, 보드 배치가 요청 전과 동일 |
