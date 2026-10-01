@@ -1126,9 +1126,11 @@ describe("DELETE /api/tickets/:id", () => {
     expect(body.error.code).toBe("TICKET_NOT_FOUND");
   });
 
-  // TC-API-006-03: ID 형식 오류
-  it("id가 숫자가 아니면 400 INVALID_ID를 반환한다", async () => {
-    const res = await DELETE(makeDeleteRequest(), makeParams("abc"));
+  // TC-API-006-03: ID 형식 오류("abc"), TC-API-006-06: ID가 0 또는 음수("0", "-1")
+  it.each(["abc", "0", "-1"])("id가 %s이면 400 INVALID_ID를 반환한다", async (id) => {
+    const row = await insertTicket();
+
+    const res = await DELETE(makeDeleteRequest(), makeParams(id));
     const body = await res.json();
 
     expect(res.status).toBe(400);
@@ -1136,17 +1138,6 @@ describe("DELETE /api/tickets/:id", () => {
       code: "INVALID_ID",
       message: "유효하지 않은 티켓 ID입니다",
     });
-  });
-
-  // TC-API-006-06: ID가 0 또는 음수
-  it.each(["0", "-1"])("id가 %s이면 400 INVALID_ID를 반환한다", async (id) => {
-    const row = await insertTicket();
-
-    const res = await DELETE(makeDeleteRequest(), makeParams(id));
-    const body = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe("INVALID_ID");
     expect(await db.select().from(tickets).where(eq(tickets.id, row.id))).toHaveLength(1);
   });
 });
