@@ -6,6 +6,7 @@ import {
   TICKET_STATUS,
   type BoardData,
   type CreateTicketInput,
+  type ReorderTicketInput,
   type TicketStatus,
   type TicketWithMeta,
   type UpdateTicketInput,
@@ -150,6 +151,71 @@ export async function deleteTicket(id: number): Promise<boolean> {
     .returning({ id: tickets.id });
 
   return deleted.length > 0;
+}
+
+export async function reorderTicket(
+  input: ReorderTicketInput
+): Promise<BoardData | null> {
+  // updatedAt은 다른 서비스 함수와 같은 JS 시각 기준이다
+  const now = new Date();
+
+  const found = await db.transaction(async (tx) => {
+    // 같은 티켓에 대한 동시 이동 요청이 서로의 판단을 덮어쓰지 않도록 행을 잠근다
+    const [current] = await tx
+      .select()
+      .from(tickets)
+      .where(eq(tickets.id, input.ticketId))
+      .for("update");
+
+    if (!current) {
+      return false;
+    }
+
+    // 이동 티켓을 제외한 대상 칼럼 (자기 자신과 같은 값은 충돌이 아니다)
+    const others = await tx
+      .select({ id: tickets.id, position: tickets.position })
+      .from(tickets)
+      .where(and(eq(tickets.status, input.status), ne(tickets.id, input.ticketId)))
+      .orderBy(asc(tickets.position), asc(tickets.id));
+
+    const movedChanges = { status: input.status, updatedAt: now };
+
+    if (!others.some((other) => other.position === input.position)) {
+      await tx
+        .update(tickets)
+        .set({ ...movedChanges, position: input.position })
+        .where(eq(tickets.id, input.ticketId));
+      return true;
+    }
+
+    // 요청한 값이 겹치면 이동 티켓을 겹친 티켓 앞에 끼워 넣고 칼럼 전체를 1024 간격으로 다시 매긴다
+    const ordered = [
+      ...others.filter((other) => other.position < input.position),
+      { id: input.ticketId, position: input.position },
+      ...others.filter((other) => other.position >= input.position),
+    ];
+
+    for (const [index, entry] of ordered.entries()) {
+      const position = (index + 1) * 1024;
+
+      if (entry.id === input.ticketId) {
+        await tx
+          .update(tickets)
+          .set({ ...movedChanges, position })
+          .where(eq(tickets.id, entry.id));
+      } else if (entry.position !== position) {
+        await tx.update(tickets).set({ position }).where(eq(tickets.id, entry.id));
+      }
+    }
+
+    return true;
+  });
+
+  if (!found) {
+    return null;
+  }
+
+  return getBoardData();
 }
 
 export async function getBoardData(): Promise<BoardData> {

@@ -2,6 +2,7 @@
 import { GET, POST } from "@/app/api/tickets/route";
 import { DELETE, GET as GET_BY_ID, PATCH } from "@/app/api/tickets/[id]/route";
 import { PATCH as COMPLETE } from "@/app/api/tickets/[id]/complete/route";
+import { PATCH as REORDER } from "@/app/api/tickets/reorder/route";
 import { eq } from "drizzle-orm";
 import { db } from "@/server/db/client";
 import { tickets } from "@/server/db/schema";
@@ -25,6 +26,14 @@ function makePatchRequest(body: unknown): Request {
 function makeCompleteRequest(): Request {
   return new Request("http://localhost/api/tickets/1/complete", {
     method: "PATCH",
+  });
+}
+
+function makeReorderRequest(body: unknown): Request {
+  return new Request("http://localhost/api/tickets/reorder", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 
@@ -1162,6 +1171,159 @@ describe("DELETE /api/tickets/:id - 서버 오류", () => {
       code: "INTERNAL_ERROR",
       message: "티켓을 삭제하지 못했습니다",
     });
+  });
+});
+
+describe("PATCH /api/tickets/reorder", () => {
+  afterEach(async () => {
+    await db.delete(tickets);
+  });
+
+  afterAll(async () => {
+    await db.delete(tickets);
+  });
+
+  async function insertTicket(overrides: Partial<typeof tickets.$inferInsert> = {}) {
+    const [row] = await db
+      .insert(tickets)
+      .values({
+        title: "이동할 티켓",
+        description: "원래 설명",
+        status: "TODO",
+        priority: "HIGH",
+        position: 2048,
+        ...overrides,
+      })
+      .returning();
+    return row;
+  }
+
+  // TC-API-007-01: 같은 칼럼 내에서 두 카드 사이로 순서 변경
+  it("같은 칼럼의 두 티켓 사이 값으로 이동하면 200과 함께 요청한 position이 반영된 보드를 반환한다", async () => {
+    const prev = await insertTicket({ position: 1024 });
+    const next = await insertTicket({ position: 2048 });
+    const moved = await insertTicket({ position: 4096 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 1536 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO.map((ticket: { id: number }) => ticket.id)).toEqual([prev.id, moved.id, next.id]);
+    expect(body.TODO[1].position).toBe(1536);
+  });
+
+  // TC-API-007-02: 칼럼 맨 앞으로 이동
+  it("칼럼 맨 앞 값으로 이동하면 200과 함께 첫 번째에 위치한다", async () => {
+    const first = await insertTicket({ position: 1024 });
+    const moved = await insertTicket({ position: 2048 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 0 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO.map((ticket: { id: number }) => ticket.id)).toEqual([moved.id, first.id]);
+    expect(body.TODO[0].position).toBe(0);
+  });
+
+  // TC-API-007-03: 칼럼 맨 뒤로 이동
+  it("칼럼 맨 뒤 값으로 이동하면 200과 함께 마지막에 위치한다", async () => {
+    const moved = await insertTicket({ position: 1024 });
+    const last = await insertTicket({ position: 2048 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 3072 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO.map((ticket: { id: number }) => ticket.id)).toEqual([last.id, moved.id]);
+    expect(body.TODO[1].position).toBe(3072);
+  });
+
+  // TC-API-007-04: 요청값이 기존 티켓과 같으면 칼럼 재정렬, 이동 티켓이 앞
+  it("요청한 position이 기존 티켓과 같으면 칼럼을 1024 간격으로 재정렬하고 이동 티켓을 앞에 놓는다", async () => {
+    const a = await insertTicket({ position: 1024 });
+    const b = await insertTicket({ position: 2048 });
+    const c = await insertTicket({ position: 3072 });
+    const moved = await insertTicket({ status: "BACKLOG", position: 1024 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 2048 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO.map((ticket: { id: number }) => ticket.id)).toEqual([a.id, moved.id, b.id, c.id]);
+    expect(body.TODO.map((ticket: { position: number }) => ticket.position)).toEqual([1024, 2048, 3072, 4096]);
+  });
+
+  // TC-API-007-19: 같은 칼럼의 같은 위치로 이동
+  it("같은 칼럼의 같은 position으로 이동해도 200이고 배치가 그대로다", async () => {
+    const first = await insertTicket({ position: 1024 });
+    const second = await insertTicket({ position: 2048 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: first.id, status: "TODO", position: 1024 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO.map((ticket: { id: number }) => ticket.id)).toEqual([first.id, second.id]);
+    expect(body.TODO.map((ticket: { position: number }) => ticket.position)).toEqual([1024, 2048]);
+  });
+
+  // TC-API-007-20: 빈 칼럼으로 이동
+  it("빈 칼럼으로 이동하면 200과 함께 유일한 항목이 되고 요청한 position이 저장된다", async () => {
+    const moved = await insertTicket({ status: "BACKLOG", position: 4096 });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 1024 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.TODO).toHaveLength(1);
+    expect(body.TODO[0]).toMatchObject({ id: moved.id, position: 1024 });
+  });
+
+  // TC-API-007-21: 이동은 다른 필드를 바꾸지 않고 본문의 다른 키는 무시된다
+  it("본문에 다른 키가 함께 와도 제목·설명·우선순위·예정일·종료예정일은 바뀌지 않는다", async () => {
+    const original = await insertTicket({
+      title: "그대로여야 함",
+      description: "설명도 그대로",
+      priority: "LOW",
+      plannedStartDate: new Date("2026-10-01"),
+      dueDate: new Date("2099-12-31"),
+    });
+
+    const res = await REORDER(
+      makeReorderRequest({
+        ticketId: original.id,
+        status: "IN_PROGRESS",
+        position: 1024,
+        title: "바뀌면 안 됨",
+        description: "바뀌면 안 됨",
+        priority: "HIGH",
+      })
+    );
+
+    expect(res.status).toBe(200);
+    const [after] = await db.select().from(tickets).where(eq(tickets.id, original.id));
+    expect(after.title).toBe("그대로여야 함");
+    expect(after.description).toBe("설명도 그대로");
+    expect(after.priority).toBe("LOW");
+    expect(after.plannedStartDate).toEqual(original.plannedStartDate);
+    expect(after.dueDate).toEqual(original.dueDate);
+    expect(after.status).toBe("IN_PROGRESS");
+  });
+
+  // TC-API-007-23 + TC-API-COMMON-01: 응답이 보드 목록 조회와 같은 형식
+  it("응답은 wrapper 없이 4개 칼럼 키를 가지며 24시간이 지난 DONE 티켓은 포함하지 않는다", async () => {
+    const moved = await insertTicket({ status: "BACKLOG", position: 1024 });
+    const expiredDone = await insertTicket({
+      status: "DONE",
+      position: 1024,
+      completedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+    });
+
+    const res = await REORDER(makeReorderRequest({ ticketId: moved.id, status: "TODO", position: 1024 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(Object.keys(body).sort()).toEqual(["BACKLOG", "DONE", "IN_PROGRESS", "TODO"]);
+    expect(body.DONE.map((ticket: { id: number }) => ticket.id)).not.toContain(expiredDone.id);
   });
 });
 
