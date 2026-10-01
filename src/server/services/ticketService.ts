@@ -142,6 +142,16 @@ export async function completeTicket(id: number): Promise<TicketWithMeta | null>
   return getTicketById(id);
 }
 
+export async function deleteTicket(id: number): Promise<boolean> {
+  // 사전 조회 없이 RETURNING으로 판정해야 동시 삭제 시 한쪽만 true가 된다
+  const deleted = await db
+    .delete(tickets)
+    .where(eq(tickets.id, id))
+    .returning({ id: tickets.id });
+
+  return deleted.length > 0;
+}
+
 export async function getBoardData(): Promise<BoardData> {
   const rows = await db
     .select()

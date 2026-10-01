@@ -349,6 +349,11 @@
 { "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
 ```
 
+**500 Internal Server Error**
+```json
+{ "error": { "code": "INTERNAL_ERROR", "message": "티켓을 삭제하지 못했습니다" } }
+```
+
 ---
 
 ## 7. `PATCH /api/tickets/reorder` — 상태/순서 변경 (드래그앤드롭)
