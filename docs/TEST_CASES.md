@@ -204,11 +204,12 @@
 | TC-API-007-01 | 같은 칼럼 내에서 두 카드 사이로 순서 변경 | `prev.position=1024`, `next.position=2048` 사이로 이동 | 200, 이동한 티켓 `position=1536` (`(1024+2048)/2`) |
 | TC-API-007-02 | 칼럼 맨 앞으로 이동 | 대상 칼럼 첫 번째 카드 `position=1024` | 200, 이동한 티켓 `position = 1024 - 1024 = 0` |
 | TC-API-007-03 | 칼럼 맨 뒤로 이동 | 대상 칼럼 마지막 카드 `position=2048` | 200, 이동한 티켓 `position = 2048 + 1024 = 3072` |
-| TC-API-007-04 | 삽입 간격이 1 미만이 되는 경우 | `prev.position=1024`, `next.position=1024` (또는 인접 정수) | 200, 해당 칼럼 전체가 1024 간격으로 재정렬됨 |
+| TC-API-007-04 | 삽입 간격이 1 미만이 되는 경우 | `prev.position=1024`, `next.position=1024`(같은 값) 또는 `next.position=1025`(인접 정수, 클라이언트가 올림한 `position=1025`를 전송) | 200, 해당 칼럼 전체가 1024 간격으로 재정렬되고 이동한 티켓이 `next` 바로 앞(= `prev`와 `next` 사이)에 위치 |
 | TC-API-007-05 | BACKLOG → TODO로 이동 (최초 시작) | 이동 대상 티켓의 `startedAt=null` | 200, `status="TODO"`, `startedAt`=현재 시각으로 설정 |
 | TC-API-007-06 | BACKLOG → IN_PROGRESS로 직접 이동 (TODO 미경유) | 이동 대상 티켓의 `startedAt=null` | 200, `status="IN_PROGRESS"`, `startedAt`=현재 시각으로 설정 |
 | TC-API-007-07 | 이미 `startedAt`이 설정된 티켓을 TODO ↔ IN_PROGRESS 간 이동 | `startedAt`=3일 전으로 이미 설정된 티켓 | 200, `startedAt` 값이 변경되지 않고 기존 값 유지 |
 | TC-API-007-08 | TODO에서 BACKLOG로 되돌림 | `status="TODO"`, `startedAt`=설정된 값 | 200, `status="BACKLOG"`, `startedAt=null`로 초기화 |
+| TC-API-007-25 | IN_PROGRESS·DONE에서 BACKLOG로 되돌림 | `status="IN_PROGRESS"` 또는 `"DONE"`, `startedAt`=설정된 값 | 200, `status="BACKLOG"`, `startedAt=null`로 초기화 (DONE이면 `completedAt=null`도) |
 | TC-API-007-09 | DONE에서 다른 칼럼(BACKLOG/TODO/IN_PROGRESS)으로 되돌림 | `status="DONE"`, `completedAt`=설정된 값 | 200, `completedAt=null`로 초기화 |
 | TC-API-007-10 | DONE이 아닌 칼럼 간 이동(BACKLOG↔TODO↔IN_PROGRESS) | `completedAt`이 이미 `null`인 티켓 | 200, `status`가 요청한 대상 칼럼 값으로 갱신됨, `completedAt`은 계속 `null` 유지 (변경 없음) |
 
@@ -218,8 +219,19 @@
 |------|------|------|------|
 | TC-API-007-11 | 대상 상태로 `DONE`을 요청 | `{ status: "DONE" }` | 400, `error.code="VALIDATION_ERROR"`, `error.message="상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요"` |
 | TC-API-007-12 | 허용되지 않는 임의의 상태 문자열 | `{ status: "ARCHIVED" }` | 400, `error.code="VALIDATION_ERROR"` |
-| TC-API-007-13 | 존재하지 않는 `ticketId` | `ticketId=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="티켓을 찾을 수 없습니다"` |
+| TC-API-007-13 | 존재하지 않는 `ticketId` | `ticketId=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않거나 삭제된 티켓입니다"` |
 | TC-API-007-14 | 트랜잭션 도중 일부만 반영되고 나머지가 실패하는 상황 방지 (원자성) | DB 오류 mock: `status` UPDATE는 성공, 이어지는 `position` UPDATE에서 실패하도록 조작 | `status`/`position` 어느 쪽도 반영되지 않음 (전체 롤백), 500 또는 적절한 에러 응답 |
+| TC-API-007-15 | `ticketId` 형식 오류 | `ticketId`가 `0`, `-1`, `"abc"`, 누락 | 400, `error.code="VALIDATION_ERROR"`, `error.field="ticketId"`, `error.message="유효하지 않은 티켓 ID입니다"` |
+| TC-API-007-16 | `position` 형식 오류 | `position`이 누락, `"abc"`, `1.5`, 32비트 범위 초과 | 400, `error.code="VALIDATION_ERROR"`, `error.field="position"`, `error.message="위치는 정수로 입력해주세요"` |
+| TC-API-007-17 | 요청 본문이 JSON이 아니거나 객체가 아님 | body=`not json` 또는 `[]` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="요청 본문이 올바른 JSON 형식이 아닙니다"` |
+| TC-API-007-18 | `status` 누락 | `{ ticketId: 1, position: 1024 }` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요"` |
+| TC-API-007-19 | 같은 칼럼의 같은 위치로 이동 | 이미 `position=1024`인 티켓을 같은 칼럼·같은 `position`으로 요청 | 200, 보드 배치가 요청 전과 동일 |
+| TC-API-007-20 | 빈 칼럼으로 이동 | 대상 칼럼에 티켓 0개, `position=1024` | 200, 해당 티켓이 칼럼의 유일한 항목, `position=1024` |
+| TC-API-007-21 | 이동 후 다른 필드 불변 | 제목·설명·우선순위·예정일·종료예정일이 채워진 티켓 이동, 본문에 `title` 등 다른 키 포함 | 200, 제목·설명·우선순위·예정일·종료예정일·`createdAt`이 요청 전과 동일 |
+| TC-API-007-22 | 서비스 계층 예외 | 서비스가 DB 오류로 예외를 던짐 | 500, `error.code="INTERNAL_ERROR"`, `error.message="티켓 순서를 변경하지 못했습니다"` |
+| TC-API-007-23 | 응답이 보드 목록 조회와 같은 형식 | 이동 성공 응답 | 200, `{ BACKLOG, TODO, IN_PROGRESS, DONE }` 4개 키, 24시간이 지난 DONE 티켓 제외 |
+| TC-API-007-24 | 24시간이 지나 보드에서 숨겨진 DONE 티켓 이동 | `status="DONE"`, `completedAt`=25시간 전인 티켓을 `TODO`로 이동 | 200, 이동한 티켓의 `completedAt=null` |
+| TC-API-007-26 | 충돌 재정렬이 다른 칼럼에 영향 없음 | 대상 칼럼에서 `position` 충돌 발생 | 대상 칼럼만 1024 간격으로 재정렬, 다른 칼럼 티켓의 `position`은 변경 없음 |
 
 ---
 

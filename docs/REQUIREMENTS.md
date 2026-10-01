@@ -212,14 +212,14 @@
 
 **비즈니스 로직**:
 - TODO 또는 IN_PROGRESS로 이동 시, 기존 startedAt이 null이면: startedAt = 현재 시각 (TODO를 거치지 않고 IN_PROGRESS로 직접 이동해도 동일하게 적용)
-- TODO에서 BACKLOG로 이동 시: startedAt = null
+- BACKLOG로 이동 시(어느 칼럼에서든): startedAt = null
 - DONE에서 다른 칼럼(BACKLOG, TODO, IN_PROGRESS)으로 이동 시: completedAt = null (FR-005 참조)
 
 **검증 에러 메시지**:
 | 조건 | 메시지 |
 |------|--------|
 | 잘못된 status | "상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요" |
-| 존재하지 않는 티켓 | "티켓을 찾을 수 없습니다" |
+| 존재하지 않는 티켓 | "존재하지 않거나 삭제된 티켓입니다" |
 
 **성공 응답**: 200 OK + 업데이트된 티켓 목록
 **실패 응답**: 400 (잘못된 status), 404 (미존재 ticketId)
@@ -366,7 +366,7 @@
 
 **인수 조건 (Acceptance Criteria)**:
 - [ ] TODO 칼럼으로 이동 시 시작일(startedAt)이 기록된다.
-- [ ] TODO에서 BACKLOG로 되돌리면 startedAt이 초기화된다.
+- [ ] BACKLOG로 되돌리면(어느 칼럼에서든) startedAt이 초기화된다.
 - [ ] Done 칼럼으로 이동 시 종료일(completedAt)이 기록된다.
 - [ ] Done에서 다른 칼럼으로 되돌리면 completedAT이 초기화된다.
 
