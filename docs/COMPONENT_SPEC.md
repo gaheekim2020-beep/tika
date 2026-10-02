@@ -183,6 +183,8 @@ MVP에서는 비활성(disabled) placeholder 입력창만 렌더링한다. 실�
 **동작**:
 - `DndContext`(dnd-kit)를 이 레벨에 배치한다 (§7 참조) — BACKLOG를 포함한 4개 `Column`이 모두 이 컴포넌트 하위에 있으므로, 사이드바 위치의 `Column(BACKLOG)`과 나머지 `Column`들 사이의 이동도 한 컨텍스트로 감지한다.
 - `onDragEnd`에서 드롭 대상 상태에 따라 `onReorder` 또는 `onComplete` prop을 호출한다 — 대상이 `DONE`이면 `onComplete`, 그 외 3개 상태면 `onReorder` (§3.6 참조).
+- DONE 칼럼 **안에서의 이동·제자리 드롭**은 어떤 콜백도 호출하지 않는다. `reorder` API는 DONE을 허용하지 않고 `complete`는 멱등이라 위치가 바뀌지 않으므로, DONE 칼럼의 내부 순서는 사용자가 바꿀 수 없다. 카드는 원래 자리로 돌아간다.
+- 보드 바깥에 드롭하거나 드래그를 취소(Esc)해도 어떤 콜백도 호출하지 않는다.
 - `DragOverlay`(dnd-kit)를 포함해 드래그 중인 카드 미리보기를 렌더링한다 (`activeId` 기반, 위 표 참조).
 - 브레이크포인트별 배치는 §2 "레이아웃 구성" 참조.
 
@@ -207,10 +209,14 @@ interface UseTicketsReturn {
   remove: (id: number) => Promise<void>;
   reorder: (ticketId: number, status: ReorderableStatus, position: number) => Promise<void>;
   complete: (id: number) => Promise<void>;
+  refetch: () => Promise<void>;
+  clearError: () => void;
 }
 
-function useTickets(initialData: BoardData): UseTicketsReturn;
+function useTickets(initialData?: BoardData): UseTicketsReturn;
 ```
+
+`initialData`는 선택 인자다. 값이 없으면 마운트 시 `refetch()`로 최초 조회를 수행한다(`isLoading=true`, 실패 시 `error`) — `app/page.tsx`는 데이터를 가져오지 않는다 (§3.1). 값이 있으면 최초 조회를 건너뛴다 (테스트 주입, 향후 서버 렌더링 대비).
 
 #### 액션별 동작
 
@@ -221,6 +227,7 @@ function useTickets(initialData: BoardData): UseTicketsReturn;
 | remove | `DELETE /api/tickets/:id` | 티켓 영구 삭제 (FR-006) |
 | reorder | `PATCH /api/tickets/reorder` | 칼럼 이동 / 순서 변경, DONE 제외 (FR-007) |
 | complete | `PATCH /api/tickets/:id/complete` | DONE으로 이동, `completedAt` 자동 설정 (FR-005) |
+| refetch | `GET /api/tickets` | 보드 전체를 다시 조회한다. 초기 로드 실패 시 `ErrorBanner`의 "재시도"가 호출하며, 마운트 시 최초 조회에도 같은 함수를 쓴다 |
 
 `reorder`와 `complete`는 `Board`(§3.4)의 `onDragEnd`가 드롭 대상 상태에 따라 `onReorder`/`onComplete` prop을 호출하고, `BoardContainer`가 이 콜백을 받아 각각 `useTickets.reorder`/`useTickets.complete`로 연결한다 (§7 "낙관적 업데이트" 참조) — DONE이면 `complete`, 그 외 3개 상태면 `reorder`.
 
@@ -234,7 +241,30 @@ function useTickets(initialData: BoardData): UseTicketsReturn;
 5. 실패: 백업한 상태로 롤백 + 에러 표시
 ```
 
-`reorder`/`complete`의 롤백은 §7 규칙대로 조용히 처리한다(토스트 없음). `create`/`update`/`remove` 실패 시에는 `error` 상태를 채워 `ErrorToast`(§8.3)로 표시한다.
+#### 실패 처리
+
+- `reorder`/`complete`: §7 규칙대로 조용히 롤백한다. `error`를 채우지 않고 reject하지도 않는다.
+- `create`/`update`/`remove`: 실패하면 `ApiError`(`code`, `message`, `field?`)로 **reject**한다. 호출부(모달)가 실패를 알아야 열린 채로 유지할 수 있기 때문이다. 이때 `error.field`가 있는 400은 폼 필드 아래에 인라인으로만 표시하므로(§6.2 `TicketForm`의 `errors`) `error` 상태를 채우지 않고, 그 외 실패(필드 없음, 404, 500, 네트워크 오류)는 `error`를 채워 `ErrorToast`(§8.3)로 표시한다.
+- `clearError()`: `error`를 비운다. `ErrorToast`의 `onDismiss`에 연결한다. 토스트가 닫힌 뒤에도 `error` 상태가 남아 있으면 같은 메시지의 오류가 다시 발생해도 토스트가 다시 표시되지 않기 때문이다.
+
+#### useTicket (상세 조회 훅)
+
+**파일**: `src/client/hooks/useTicket.ts`
+
+`TicketModal`(§6.2)이 오픈 시 `GET /api/tickets/:id`로 최신 단건 데이터를 조회하는 데 쓴다. 보드 전체를 소유하는 `useTickets`와 달리 모달이 열려 있는 동안에만 의미 있는 상태(로딩·에러·요청 경쟁)를 다루므로 별도 훅으로 둔다. 컴포넌트가 `ticketApi`를 직접 호출하지 않는다는 원칙(TRD.md §4)을 지키기 위함이다.
+
+```typescript
+interface UseTicketReturn {
+  ticket: TicketWithMeta | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+function useTicket(ticketId: number | null): UseTicketReturn;
+```
+
+- `ticketId`가 `null`이면 조회하지 않는다. 값이 바뀌면 다시 조회하며, 이전 요청의 응답이 새 요청의 결과를 덮어쓰지 않는다.
+- 수정·삭제 결과를 보드에 반영하는 것은 `useTickets`의 `update`/`remove`가 담당한다.
 
 #### API 호출 함수
 
@@ -264,7 +294,7 @@ function useTickets(initialData: BoardData): UseTicketsReturn;
         → PATCH /api/tickets/:id/complete
         → completedAt 자동 설정 (Done 칼럼에는 completedAt 기준 24시간 이내인 동안만 표시, DATA_MODEL.md §5.4)
     2-b. [대상 = BACKLOG / TODO / IN_PROGRESS]
-        → position 계산 (클라이언트, API_SPEC.md §7): 두 카드 사이 = (prev + next) / 2를 올림한 정수, 맨 앞 = 첫 카드 position - 1024, 맨 뒤 = 마지막 카드 position + 1024
+        → position 계산 (클라이언트, API_SPEC.md §7): 두 카드 사이 = (prev + next) / 2를 올림한 정수, 맨 앞 = 첫 카드 position - 1024, 맨 뒤 = 마지막 카드 position + 1024, 빈 칼럼 = 1024
         → 낙관적 업데이트 (board 상태 즉시 반영)
         → Board.onReorder(ticketId, status, position) prop 호출 → BoardContainer → useTickets.reorder(...)
         → PATCH /api/tickets/reorder
@@ -348,6 +378,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 
 **표시 요소**:
 - 제목 (`title`)
+- 설명 (`description`) — 존재할 경우 제목 아래에 최대 2줄까지 말줄임으로 표시 (`docs/reference/image/tika-wireframe.png` 기준)
 - `PriorityBadge` (`priority`)
 - `OverdueIndicator` (`isOverdue === true`일 때만 렌더링)
 - 종료예정일(`dueDate`) — 존재할 경우 표시
@@ -357,7 +388,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 - 클릭(드래그가 아닌 클릭)으로 `TicketModal` 오픈
 - `isOverdue === true`일 때 카드 테두리를 `status.overdue.border` 토큰으로 강조 표시 (DESIGN_SYSTEM.md §1 "Overdue 카드 표시 규칙" — 테두리는 `TicketCard` 자체가, 배지는 `OverdueIndicator`가 각각 담당)
 
-**접근성**: `role="button"`, `aria-label="{title}, 우선순위 {priority}{, 지연됨 (isOverdue인 경우)}"`, 키보드 포커스 가능(`tabIndex=0`), Enter/Space로 상세 모달 오픈
+**접근성**: `role="button"`, `aria-label="{title}, 우선순위 {priority}{, 지연됨 (isOverdue인 경우)}"`, 키보드 포커스 가능(`tabIndex=0`), Enter로 상세 모달 오픈 (Space는 드래그 픽업 전용, §7)
 
 ### 5.2 PriorityBadge
 
@@ -419,7 +450,7 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 | onDelete | `(id: number) => Promise<void>` | O | 삭제 확정 시 `DELETE /api/tickets/:id` 호출 |
 
 **동작**:
-- 오픈 시 `GET /api/tickets/:id`로 최신 데이터 조회
+- 오픈 시 `GET /api/tickets/:id`로 최신 데이터 조회 (`useTicket`, §3.5)
 - 조회 중(응답 전)에는 모달 자체를 열어둔 채로 `TicketDetailView`/`TicketForm` 자리에 간단한 스켈레톤(§8.1 `BoardSkeleton`과 동일한 패턴)을 표시한다. 응답이 오면 실제 내용으로 교체한다 — 카드 클릭 직후 아무 반응이 없어 보이는 공백을 방지하기 위함이다.
 - 조회 자체가 실패(404/500)하면 스켈레톤 대신 에러 메시지를 모달 내부에 표시하고, `TicketForm`/`DeleteButton`은 렌더링하지 않는다 (수정/삭제 대상 데이터가 없으므로).
 - 저장 시 변경된 필드만 `PATCH` 요청 (Partial Update)
@@ -444,18 +475,20 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 
 `status`는 `Badge`(§8.6) primitive를 사용하지 않고 일반 텍스트로 표시한다. `Badge`의 variant 목록(`low`/`medium`/`high`/`overdue`/`neutral`)에는 상태(`BACKLOG`/`TODO`/`IN_PROGRESS`/`DONE`)용 색상이 정의되어 있지 않으며, §11 접근성 원칙("색상에만 의존하지 않음")에 따라 별도 색상 확장 없이 텍스트만으로 표시해도 충분하다.
 
-#### TicketForm (수정 모드)
+#### TicketForm (생성·수정 공용)
 
 `TicketFormModal`(§6.1, 생성)과 `TicketModal`(§6.2, 수정) 양쪽에서 공용으로 사용하는 컴포넌트다.
 
 **Props**:
 | Prop | 타입 | 필수 | 설명 |
 |------|------|------|------|
-| ticket | `TicketWithMeta` | O | 초기값으로 사용할 티켓 데이터 |
-| onSubmit | `(input: UpdateTicketInput) => Promise<void>` | O | 저장 핸들러 |
+| ticket | `TicketWithMeta` | X | 초기값으로 사용할 티켓 데이터. 없으면 생성 모드(빈 값, 우선순위 MEDIUM) |
+| onSubmit | `(input: UpdateTicketInput) => Promise<void>` (수정) / `(input: CreateTicketInput) => Promise<void>` (생성) | O | 저장 핸들러. `ticket` 유무로 시그니처가 갈리는 판별 유니온 Props로 정의한다 |
 | errors | `Record<string, string>` | X (기본 `{}`) | 필드별 에러 메시지. key는 API_SPEC.md 400 응답의 `error.field` 값(`title`/`description`/`priority`/`dueDate` 등)과 동일하게 맞춘다 |
 
 **필드**: 제목 / 설명 / 우선순위 / 시작예정일 / 종료예정일 (수정 가능, FR-004). `status`/`position`은 이 폼에서 다루지 않는다 (드래그앤드롭 전용, FR-007) — `TicketDetailView`에서 읽기 전용으로만 표시된다.
+
+**생성/수정 모드**: `ticket`이 있으면 수정 모드(`updateTicketSchema`로 검증, `onSubmit`은 `UpdateTicketInput`), 없으면 생성 모드(`createTicketSchema`로 검증, `onSubmit`은 `CreateTicketInput`)다. 생성에서는 비어 있는 설명·날짜를 본문에서 **생략**하고(API_SPEC.md §1: `description`은 `null` 불허), 수정에서는 비운 설명·날짜를 `null`로 보내 값을 지운다 (API_SPEC.md §4).
 
 **에러 표시 동작**:
 - 클라이언트 사이드 Zod 검증 실패, 서버 400 응답(`error.field` 존재) 모두 동일하게 `errors` prop을 통해 전달받는다 — 검증 주체(클라이언트/서버)에 따라 표시 방식을 분기하지 않는다.
@@ -485,8 +518,9 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 - **낙관적 업데이트(NFR-004)**: 드롭 발생 시 `Board`의 `onDragEnd`가 대상 상태에 따라 `onReorder`/`onComplete` prop을 호출하고, 이를 받은 `BoardContainer`가 `useTickets`(§3.5)의 대응 액션을 호출한다. `useTickets`가 `BoardData` 상태를 즉시 갱신(status/position 반영)한 뒤 API를 호출하는 낙관적 업데이트를 내부적으로 수행한다.
   - 대상이 `DONE`: `Board.onComplete(id)` → `BoardContainer` → `useTickets.complete(id)` → `PATCH /api/tickets/:id/complete`
   - 대상이 `BACKLOG`/`TODO`/`IN_PROGRESS`: `Board.onReorder(ticketId, status, position)` → `BoardContainer` → `useTickets.reorder(...)` → `PATCH /api/tickets/reorder`
+- **드롭 위치 계산과 예외**: 빈 칼럼으로 옮길 때 `position`은 `1024`다 (DATA_MODEL.md §5.5, TC-API-007-20과 동일). DONE 칼럼 안에서의 이동·제자리 드롭은 API를 호출하지 않고 카드가 원래 자리로 돌아간다 (§3.4). 위치 계산과 낙관적 이동 같은 순수 로직은 컴포넌트 밖의 `src/client/lib/` 함수로 분리한다.
 - API 실패 시 `useTickets`가 드롭 이전 `BoardData` 스냅샷으로 조용히 롤백한다(별도 토스트/알림 없음) — 카드가 원래 위치로 즉시 되돌아가는 시각적 변화 자체가 실패를 알리는 신호이므로 추가 알림 컴포넌트를 두지 않는다.
-- 키보드 조작(NFR-003)은 dnd-kit의 기본 키보드 센서 패턴을 따른다: Tab으로 카드 포커스 → Space로 픽업 → 화살표 키로 칼럼/위치 이동 → Space로 드롭, Esc로 취소.
+- 키보드 조작(NFR-003)은 dnd-kit의 기본 키보드 센서 패턴을 따른다: Tab으로 카드 포커스 → Space로 픽업 → 화살표 키로 칼럼/위치 이동 → Space로 드롭, Esc로 취소. `KeyboardSensor`의 시작 키는 기본값(Space, Enter)이 아니라 **Space로 제한**한다 — Enter는 `TicketCard`의 상세 모달 오픈에 쓴다 (§5.1, TRD.md §1.5).
 
 ---
 
@@ -500,8 +534,9 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 보드 초기 로드(`GET /api/tickets`) 실패(500) 시 전체 화면에 표시.
 
 ### 8.3 ErrorToast
-**Props**: `message: string`
+**Props**: `message: string`, `onDismiss: () => void`
 생성/수정/삭제 등 모달 기반 액션의 API 실패 시 일시적으로 표시되는 토스트. 드래그앤드롭 실패는 조용히 롤백만 하고 이 토스트를 띄우지 않는다 (§7).
+표시 후 **5초가 지나면 자동으로 사라지며** `onDismiss`를 호출한다 (`useTickets.clearError`에 연결, §3.5). `message`가 바뀌면 타이머를 다시 시작한다. `role="alert"`로 스크린리더에 즉시 알린다.
 
 ### 8.4 EmptyColumnState
 **Props**: `label: string` (예: "아직 카드가 없어요")
@@ -628,7 +663,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 
 | 컴포넌트 | 접근성 요소 |
 |------|------|
-| TicketCard | `role="button"`, `aria-label`, `tabIndex=0`, Enter/Space로 모달 오픈, 드래그는 dnd-kit 키보드 센서 (§7) |
+| TicketCard | `role="button"`, `aria-label`, `tabIndex=0`, Enter로 모달 오픈, 드래그는 Space로 픽업하는 dnd-kit 키보드 센서 (§7) |
 | Column | droppable 영역에 `aria-label="{칼럼명} 칼럼"` |
 | PriorityBadge | 텍스트로 우선순위 노출(아이콘/색상에만 의존하지 않음) |
 | OverdueIndicator | `aria-label="지연됨"`, 아이콘 + 텍스트 병행 (색상에만 의존하지 않음) |

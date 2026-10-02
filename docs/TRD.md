@@ -77,6 +77,7 @@ tika/
 │   ├── client/                 # 프론트엔드 로직
 │   │   ├── components/         # UI 컴포넌트 (PascalCase 파일명)
 │   │   ├── hooks/               # 커스텀 훅
+│   │   ├── lib/                 # 순수 로직 (position 계산, 보드 상태 변환 등, React 비의존)
 │   │   └── api/                 # API 호출 함수 (ticketApi.ts)
 │   └── shared/                  # 공유 타입/검증/상수
 │       ├── types/                # 도메인 타입 (Ticket, BoardData 등)
@@ -109,7 +110,7 @@ Next.js App Router는 컴포넌트를 기본적으로 **서버 컴포넌트**로
 | `DragOverlay` | `DndContext`와 같은 레벨(`Board` 내부) | 드래그 중인 카드의 미리보기를 렌더링한다. 원본 카드 위치와 별개로 포인터를 따라다니는 미리보기이므로 `Board`에 1곳만 둔다. 렌더링 대상은 `Board`가 소유한 로컬 상태 `activeId`로 `board`에서 조회한다 (COMPONENT_SPEC.md §3.4). |
 
 - `onDragEnd` 콜백에서 드롭 대상에 따라 `onReorder`/`onComplete` prop을 호출하고, 이를 받은 `BoardContainer`가 `useTickets`의 낙관적 업데이트(§3.3) → API 호출 → 실패 시 롤백 흐름을 수행한다.
-- 키보드 접근성(NFR-003)은 dnd-kit 기본 키보드 센서(`KeyboardSensor`)를 그대로 사용하며, 별도 커스텀 키 매핑을 구현하지 않는다.
+- 키보드 접근성(NFR-003)은 dnd-kit 기본 키보드 센서(`KeyboardSensor`)를 사용하되 **시작 키만 Space로 제한**한다. 기본 시작 키는 Space와 Enter 둘 다인데, Enter는 카드의 상세 모달 열기(COMPONENT_SPEC.md §5.1)에 쓰기 때문이다. 이동·취소·종료 키는 기본값을 그대로 쓰며 그 외 커스텀 키 매핑은 만들지 않는다. dnd-kit의 기본 스크린리더 안내문("스페이스바로 집어 올린다")과도 일치한다.
 
 **센서(Sensor) 구성**:
 
@@ -121,7 +122,13 @@ const sensors = useSensors(
   useSensor(TouchSensor, {
     activationConstraint: { delay: 250, tolerance: 5 }, // 250ms 꾹 누르기 + 5px 이내 흔들림 허용
   }),
-  useSensor(KeyboardSensor),
+  useSensor(KeyboardSensor, {
+    keyboardCodes: {
+      start: [KeyboardCode.Space], // 기본값은 Space + Enter. Enter는 카드의 상세 모달 열기에 쓰므로 제외
+      cancel: [KeyboardCode.Esc], // 기본값 그대로
+      end: [KeyboardCode.Space, KeyboardCode.Enter, KeyboardCode.Tab], // 기본값 그대로
+    },
+  }),
 );
 ```
 
@@ -129,7 +136,7 @@ const sensors = useSensors(
 |------|------|------|------|
 | `PointerSensor` | 마우스, 트랙패드 | `distance: 8` | 클릭(카드 열기)과 드래그 시작을 구분한다. 값이 너무 작으면 클릭이 드래그로 오인식된다. |
 | `TouchSensor` | 모바일 터치 | `delay: 250, tolerance: 5` | §2.3 모바일 브레이크포인트는 4개 칼럼이 세로 스크롤로 배치되므로(COMPONENT_SPEC.md §2.3), 지연 없이 터치를 바로 드래그로 인식하면 스크롤하려는 손가락 움직임이 카드 드래그로 오인식된다. 250ms 이상 눌러야 드래그가 시작되고, 그동안 손가락이 5px 넘게 움직이면(스크롤 의도로 판단) 드래그를 취소하고 일반 스크롤을 허용한다. |
-| `KeyboardSensor` | 키보드 | 기본값 | NFR-003, 위 설명 참조 |
+| `KeyboardSensor` | 키보드 | `keyboardCodes.start = [Space]`, 나머지 기본값 | NFR-003. 기본 시작 키(Space, Enter)를 그대로 쓰면 카드의 Enter 상세 열기와 충돌하므로 Enter를 시작 키에서 뺀다. |
 
 ---
 
@@ -310,7 +317,7 @@ npm run db:seed       # 개발용 시드 데이터 생성
 
 ### 5.3 테스트: Jest + React Testing Library
 
-- **컴포넌트/훅/클라이언트 API 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경(기본값) 사용.
+- **컴포넌트/훅/클라이언트 API 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/lib/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경(기본값) 사용.
 - **서비스/서버 API 테스트** (`__tests__/services/`, `__tests__/api/tickets*.test.ts`): `node` 환경 사용 — 파일 상단에 `/** @jest-environment node */` 명시 필수.
 - 서비스 테스트는 공유 테스트 DB(`tika_test`)를 사용하므로 `--runInBand`로 순차 실행하여 race condition을 방지한다.
 - TDD 사이클을 따른다: TEST_CASES.md의 테스트 케이스 확인 → 실패하는 테스트 작성(Red) → 최소 구현(Green) → 리팩토링(Refactor).
