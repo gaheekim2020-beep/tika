@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "jest --runInBand",
-    "test:components": "jest __tests__/components __tests__/hooks __tests__/lib __tests__/api/ticketApi.test.ts",
+    "test:components": "jest __tests__/components __tests__/hooks __tests__/lib __tests__/helpers __tests__/api/ticketApi.test.ts",
     "test:watch": "jest --watch",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
