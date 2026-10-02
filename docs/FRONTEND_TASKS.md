@@ -44,7 +44,7 @@
 3. **Green**: 테스트를 통과시키는 최소 구현만 작성한다.
 4. **Refactor**: 중복 제거, 이름 정리. 테스트는 계속 통과해야 한다.
 5. **명세 대조**: Props 이름·타입, 접근성 속성(§11), `globals.css` 클래스 사용 여부를 확인한다.
-6. **검증**: `npx tsc --noEmit` → `npm run test:components` → (Phase 끝에) `npm run build`.
+6. **검증**: `npx tsc --noEmit` → `npm run test:components` → **프리뷰에 등록해 화면 확인**(§1.5) → (Phase 끝에) `npm run build`.
 7. **체크박스 갱신**, 의미 있는 단위로 커밋 (`[CL] feat: ...`, `[CL] test: ...`).
 
 ### 1.2 코딩 규칙 (CLAUDE.md 요약)
@@ -84,6 +84,39 @@
 - 브랜치: `feature/frontend-*` (CLAUDE.md 브랜치 전략). 현재 `feature/frontend-styles`에서 시작하고, Phase 단위로 이어서 진행한다.
 - 커밋 접두사 `[CL]`, 타입은 `feat`/`test`/`docs`/`refactor`. 한 컴포넌트의 Red→Green은 가능하면 `test:`와 `feat:`를 나누어 커밋한다.
 - 커밋 전 체크: `npx tsc --noEmit`, `npm run test`, `npm run build`, `console.log` 없음, `.env` 미포함.
+
+### 1.5 프리뷰 페이지와 Phase 게이트
+
+컴포넌트를 만들 때마다 눈으로 확인할 수 있는 갤러리 페이지다. `npm run dev` 후 **http://localhost:3000/preview**에서 본다. DB·API가 필요 없고, **개발 환경 전용**이라 프로덕션 빌드에서는 404로 처리한다.
+
+| 파일 | 역할 |
+|------|------|
+| `app/preview/page.tsx` | 클라이언트 컴포넌트. Phase 필터와 섹션 렌더링 |
+| `app/preview/_registry.tsx` | **보여줄 컴포넌트 목록**(`previewSections`)과 Phase 정의 — 여기에 항목을 추가한다 |
+| `app/preview/_mock/mockData.ts` | 목 데이터: `makeTicket`, `makeBoard`, `makeEmptyBoard`, `longTitleTicket` |
+| `app/preview/_components/PreviewSection.tsx` | 섹션 틀 (제목·명세 번호·`contained` 옵션) |
+| `app/preview/layout.tsx` | 프로덕션 404 가드, `noindex` |
+| `__tests__/components/preview/` | 위 파일들의 테스트 (페이지·가드·목 데이터·레지스트리 검증) |
+
+**컴포넌트 추가 방법**: 컴포넌트 구현과 테스트가 끝나면 `_registry.tsx`의 `previewSections`에 `{ id, phase, title, spec, render }` 항목을 추가한다 (파일 위쪽 주석에 예시가 있다). 모달·토스트처럼 화면 전체를 덮는 컴포넌트는 `contained: true`로 두어 패널 안에 가둔다. 목 데이터는 서버·클라이언트 렌더링 결과가 달라지지 않도록 **현재 시각이나 카운터를 쓰지 않는다**.
+
+**Phase 게이트** — 각 Phase가 끝날 때마다 아래 순서로 확인하고 다음 Phase로 넘어간다.
+
+1. `npx tsc --noEmit`
+2. `npm run test` — 해당 Phase의 TC가 모두 통과
+3. 프리뷰에 해당 Phase 컴포넌트를 등록하고 `/preview`에서 화면 확인 (색상·간격·상태별 모습, 수동 확인으로 남겨 둔 TC 항목)
+4. 확인 결과를 공유하고 사용자가 확인한 뒤 다음 Phase로 진행 (문제가 있으면 수정 후 1번부터 반복)
+5. `npm run build` 후 커밋
+
+| Phase | 프리뷰에서 확인할 것 |
+|-------|---------------------|
+| P2 | `Button` variant 4종·size·로딩, `Badge` 5종, `PriorityBadge`, `OverdueIndicator`, `Modal`·`ConfirmDialog`(`contained`), `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast` |
+| P3 | `TicketCard` 상태별(기본·지연·DONE·긴 제목·설명 있음/없음), `Column`(카드 여러 개·빈 칼럼·DONE 안내·BACKLOG) |
+| P4 | `Board` 전체(`makeBoard()`, `makeEmptyBoard()`)와 드래그 동작 — 마지막 이벤트를 화면에 표시해 `onReorder`/`onComplete` 호출을 확인 |
+| P5 | `TicketForm`(생성·수정·오류 표시), `TicketDetailView`, `TicketFormModal`, `TicketModal`(로딩·오류·정상), `ConfirmDialog` |
+| P6 | `BoardHeader`, `BoardContainer`(로딩·오류·정상) |
+
+> P6의 `BoardContainer`는 `ticketApi`로 서버를 호출하므로 DB 없이 프리뷰하려면 `fetch` 응답을 대체하는 방법이 필요하다. P6 시작 전에 방식을 정한다 (예: 프리뷰 전용 `fetch` mock, 또는 `useTickets`에 주입 가능한 `initialData` 사용).
 
 ---
 
@@ -215,12 +248,13 @@ graph LR
   - 독립 컴포넌트: `ConfirmDialog`(§8.7), `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast`, `PriorityBadge`/`OverdueIndicator` (`TC-COMP-010-01~09`, `011-01~04`, `012-01~04`, `013-01~04`, §3.10~3.13)
   - 번호는 확정했다. 구현할 때는 각 컴포넌트·함수 블록 제목의 TC 번호를 기준으로 테스트 이름에 TC ID를 적는다.
 - [ ] **P0-3 테스트 지원 코드**
-  - [ ] `__tests__/helpers/fixtures.ts`: `makeTicket`, `makeBoard` (Red 불필요, 사용하는 테스트로 검증)
+  - [ ] `__tests__/helpers/fixtures.ts`: `makeTicket`, `makeBoard` — `app/preview/_mock/mockData.ts`의 함수를 재사용해 중복을 피한다 (Red 불필요, 사용하는 테스트로 검증)
   - [ ] dnd-kit mock 헬퍼: `DndContext` props를 캡처하는 `jest.mock` 패턴을 한 곳에 정리 (`__tests__/helpers/dndMock.tsx`)
   - [ ] `jest.setup.ts`에 필요한 환경 보강 확인 (`ResizeObserver` 등 jsdom 미지원 API가 dnd-kit에서 필요한지 첫 렌더 테스트에서 확인)
   - [X] `package.json`의 `test:components`에 `__tests__/lib` 추가 (D11)
   - [ ] 확인: `npm run test:components`가 빈 폴더에서도 오류 없이 동작
-- [ ] **P0-4 스타일 선행 작업 정리**: `feature/frontend-styles`의 `globals.css`, `colors.json`을 커밋한다. 설명 영역(D7)용 `.card-desc`(2줄 말줄임)는 `globals.css`에 추가 완료했고, `.card-title`의 말줄임(TC-COMP-001-07)은 P3에서 보강한다.
+- [X] **P0-4 스타일 선행 작업 정리**: `feature/frontend-styles`의 `globals.css`, `colors.json`을 커밋한다. 설명 영역(D7)용 `.card-desc`(2줄 말줄임)는 `globals.css`에 추가 완료했고, `.card-title`의 말줄임(TC-COMP-001-07)은 P3에서 보강한다.
+- [X] **P0-5 프리뷰 페이지 골격** (§1.5): `/preview` 갤러리와 레지스트리(빈 상태), 목 데이터, 프로덕션 404 가드를 만들고 테스트 19개로 검증했다. `npm run dev`에서 DB 없이 200 응답을 확인했다. 브랜치 `feature/frontend-preview`
 
 ---
 
@@ -569,7 +603,7 @@ graph LR
 
 | Phase | 항목 | 완료 |
 |-------|------|------|
-| P0 | 스펙 갭 결정 · TC 보강 · 테스트 지원 코드 · 스타일 커밋 | [ ] |
+| P0 | 스펙 갭 결정 · TC 보강 · 테스트 지원 코드 · 스타일 커밋 · 프리뷰 페이지 | [ ] |
 | P1 | `ticketApi` · `boardUtils` · `useTickets` · `useTicket` | [ ] |
 | P2 | `Button` · `Badge` · `PriorityBadge` · `OverdueIndicator` · `Modal` · `ConfirmDialog` · `EmptyColumnState` · `BoardSkeleton` · `ErrorBanner` · `ErrorToast` | [ ] |
 | P3 | `ColumnHeader` · `TicketCard` · `Column` | [ ] |
