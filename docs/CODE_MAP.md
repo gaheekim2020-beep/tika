@@ -183,8 +183,8 @@
 | TC-API-007-10 | DONE 아닌 칼럼 간 이동 | [completedAt 계속 null](../__tests__/api/tickets.test.ts#L1431) | [completedAt 계속 null](../__tests__/services/ticketService.test.ts#L890) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
 | TC-API-007-11 | 대상 status가 DONE → 400 (field 없음) | [DONE 거절](../__tests__/api/tickets.test.ts#L1497) | - | [status 분기](../app/api/tickets/reorder/route.ts#L34) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
 | TC-API-007-12 | 허용되지 않는 status 문자열 | [ARCHIVED 거절](../__tests__/api/tickets.test.ts#L1510) | - | [status 분기](../app/api/tickets/reorder/route.ts#L34) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
-| TC-API-007-13 | 없는 ticketId → 404 | [404 TICKET_NOT_FOUND](../__tests__/api/tickets.test.ts#L1535) | [null 반환](../__tests__/services/ticketService.test.ts#L940) | [404 응답](../app/api/tickets/reorder/route.ts#L55) | [`reorderTicket`](../src/server/services/ticketService.ts#L178) |
-| TC-API-007-14 | 트랜잭션 원자성 (롤백) | - | [두 번째 UPDATE 실패 시 롤백](../__tests__/services/ticketService.test.ts#L956) | - | [`db.transaction`](../src/server/services/ticketService.ts#L184) |
+| TC-API-007-13 | 없는 ticketId → 404 | [404 TICKET_NOT_FOUND](../__tests__/api/tickets.test.ts#L1535) | [null 반환](../__tests__/services/ticketService.test.ts#L962) | [404 응답](../app/api/tickets/reorder/route.ts#L55) | [`reorderTicket`](../src/server/services/ticketService.ts#L178) |
+| TC-API-007-14 | 트랜잭션 원자성 (롤백) | - | [두 번째 UPDATE 실패 시 롤백](../__tests__/services/ticketService.test.ts#L978) | - | [`db.transaction`](../src/server/services/ticketService.ts#L184) |
 | TC-API-007-15 | ticketId 형식 오류 | [it.each 4개 값](../__tests__/api/tickets.test.ts#L1547) | - | [field 포함 400](../app/api/tickets/reorder/route.ts#L45) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
 | TC-API-007-16 | position 형식·범위 오류 | [it.each 4개 값](../__tests__/api/tickets.test.ts#L1566) | - | [field 포함 400](../app/api/tickets/reorder/route.ts#L45) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
 | TC-API-007-17 | 본문이 JSON이 아니거나 객체가 아님 | [it.each 2개 본문](../__tests__/api/tickets.test.ts#L1585) | - | [본문 오류 400](../app/api/tickets/reorder/route.ts#L29) | - |
@@ -200,4 +200,5 @@
 **TC 번호가 없는 테스트** (해당 계층 고유 검증)
 - [startedAt이 있는 DONE 티켓을 TODO로 이동하면 startedAt은 유지된다](../__tests__/services/ticketService.test.ts#L876)
 - [BACKLOG 안에서 순서만 바꾸면 startedAt은 null로 유지된다](../__tests__/services/ticketService.test.ts#L914)
-- [충돌 재정렬 경로로 이동해도 시각 규칙이 똑같이 적용된다](../__tests__/services/ticketService.test.ts#L923)
+- [충돌 재정렬 경로로 이동해도 startedAt이 null이면 현재 시각이 되고 completedAt은 null이 된다](../__tests__/services/ticketService.test.ts#L923)
+- [충돌 재정렬 경로에서도 이미 있는 startedAt은 유지되고 completedAt만 null이 된다](../__tests__/services/ticketService.test.ts#L943)

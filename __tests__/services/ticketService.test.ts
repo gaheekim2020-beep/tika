@@ -920,11 +920,33 @@ describe("ticketService", () => {
         expect((await getRow(moved.id)).startedAt).toBeNull();
       });
 
-      it("충돌 재정렬 경로로 이동해도 시각 규칙이 똑같이 적용된다", async () => {
+      it("충돌 재정렬 경로로 이동해도 startedAt이 null이면 현재 시각이 되고 completedAt은 null이 된다", async () => {
         await insertTicket({ status: TICKET_STATUS.TODO, position: 1024 });
         const moved = await insertTicket({
           status: TICKET_STATUS.DONE,
           position: 5000,
+          startedAt: null,
+          completedAt: new Date(Date.now() - 60 * 60 * 1000),
+        });
+
+        const before = new Date();
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+        const afterTime = new Date();
+        const after = await getRow(moved.id);
+
+        expect(after.completedAt).toBeNull();
+        expect(after.startedAt).not.toBeNull();
+        expect(after.startedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(after.startedAt!.getTime()).toBeLessThanOrEqual(afterTime.getTime());
+      });
+
+      it("충돌 재정렬 경로에서도 이미 있는 startedAt은 유지되고 completedAt만 null이 된다", async () => {
+        const startedAt = threeDaysAgo();
+        await insertTicket({ status: TICKET_STATUS.TODO, position: 1024 });
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          position: 5000,
+          startedAt,
           completedAt: new Date(Date.now() - 60 * 60 * 1000),
         });
 
@@ -932,7 +954,7 @@ describe("ticketService", () => {
         const after = await getRow(moved.id);
 
         expect(after.completedAt).toBeNull();
-        expect(after.startedAt).not.toBeNull();
+        expect(after.startedAt?.getTime()).toBe(startedAt.getTime());
       });
     });
 
