@@ -63,17 +63,17 @@
 - 위치: `__tests__/components/<이름>.test.tsx`, `__tests__/hooks/<이름>.test.ts(x)`, `__tests__/api/ticketApi.test.ts`. 환경은 jsdom(기본값)이며 `@jest-environment node`를 붙이지 않는다.
 - 도구: `@testing-library/react`, `@testing-library/user-event`(v14, `userEvent.setup()`), `@testing-library/jest-dom`.
 - 쿼리 우선순위: `getByRole`(+`name`) → `getByLabelText` → `getByText`. 구현 세부(클래스명 등)는 **스타일 variant를 확인해야 할 때만** 단언한다.
-- fixture: `__tests__/helpers/fixtures.ts`의 `makeTicket(overrides)`, `makeBoard(overrides)`를 쓰고, 테스트마다 데이터를 새로 만든다.
+- fixture: `__tests__/helpers/fixtures.ts`의 `makeTicket(overrides)`, `makeBoard()`, `makeEmptyBoard()`, `longTitleTicket`, `makeBoardOf(tickets)`를 쓴다 (앞의 네 가지는 `app/preview/_mock/mockData.ts`를 다시 내보낸 것). 값이 고정이라 호출 순서나 시간에 영향받지 않는다.
 - 시간·타이머: `jest.useFakeTimers()`는 `ErrorToast` 같은 타이머 테스트에서만 쓰고 `afterEach`에서 복구한다.
-- API mock: 컴포넌트·훅 테스트는 `jest.mock("@/client/api/ticketApi")`로 대체하고, `ticketApi` 자체 테스트만 `global.fetch`를 mock한다.
+- API mock: 컴포넌트·훅 테스트는 `jest.mock("@/client/api/ticketApi")`로 대체하고, `ticketApi` 자체 테스트만 `global.fetch`를 mock한다. **jsdom에는 `fetch`/`Response`/`Request`가 없으므로** `__tests__/helpers/fetchMock.ts`의 `mockFetch`, `jsonResponse`, `emptyResponse`, `htmlResponse`, `networkError`, `restoreFetch`를 쓴다.
 
 **dnd-kit 테스트 전략** (jsdom에는 레이아웃이 없어 실제 드래그 시뮬레이션이 불안정하다)
 
 | 대상 | 방법 |
 |------|------|
 | 드롭 결과 계산 | `boardUtils`의 순수 함수로 분리해 단위 테스트 (P1) |
-| `Board`의 `onDragEnd` 분기 | `@dnd-kit/core`의 `DndContext`를 mock해 핸들러를 캡처하고, `{ active: { id }, over: { id } }` 형태의 가짜 이벤트로 직접 호출 |
-| `TicketCard`·`Column` | 실제 `DndContext` + `SortableContext`로 감싸 렌더링만 검증 (드래그 동작 없음) |
+| `Board`의 `onDragEnd` 분기 | `@dnd-kit/core`의 `DndContext`를 mock해 핸들러를 캡처하고 가짜 이벤트로 직접 호출 — `__tests__/helpers/dndMock.tsx`의 `dnd.start/over/end/cancel(...)`, 센서 구성은 `dnd.sensorCalls()` |
+| `TicketCard`·`Column` | 실제 `DndContext` + `SortableContext`로 감싸 렌더링만 검증 (드래그 동작 없음) — `__tests__/helpers/renderWithDnd.tsx` |
 | 센서 설정 (TRD §1.5) | `useSensor` 호출 인자를 검증하거나 설정 상수를 export해 단위 테스트 |
 | 실제 마우스·터치·키보드 드래그 | **수동 점검**(P7) 또는 통합 도구 도입 후 자동화 (결정 D10) |
 
@@ -247,12 +247,14 @@ graph LR
   - `useTickets` / `useTicket`: 로딩, 낙관적 업데이트, 롤백 (`TC-HOOK-001-01~18`, `TC-HOOK-002-01~06`, §3.16~3.17)
   - 독립 컴포넌트: `ConfirmDialog`(§8.7), `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast`, `PriorityBadge`/`OverdueIndicator` (`TC-COMP-010-01~09`, `011-01~04`, `012-01~04`, `013-01~04`, §3.10~3.13)
   - 번호는 확정했다. 구현할 때는 각 컴포넌트·함수 블록 제목의 TC 번호를 기준으로 테스트 이름에 TC ID를 적는다.
-- [ ] **P0-3 테스트 지원 코드**
-  - [ ] `__tests__/helpers/fixtures.ts`: `makeTicket`, `makeBoard` — `app/preview/_mock/mockData.ts`의 함수를 재사용해 중복을 피한다 (Red 불필요, 사용하는 테스트로 검증)
-  - [ ] dnd-kit mock 헬퍼: `DndContext` props를 캡처하는 `jest.mock` 패턴을 한 곳에 정리 (`__tests__/helpers/dndMock.tsx`)
-  - [ ] `jest.setup.ts`에 필요한 환경 보강 확인 (`ResizeObserver` 등 jsdom 미지원 API가 dnd-kit에서 필요한지 첫 렌더 테스트에서 확인)
+- [X] **P0-3 테스트 지원 코드** (완료 — `__tests__/helpers/`, 자체 테스트 26개)
+  - [X] `__tests__/helpers/fixtures.ts`: 미리보기 목 데이터를 다시 내보내고 `makeBoardOf(tickets)`(status별 분류·position 정렬)를 추가
+  - [X] dnd-kit mock 헬퍼 `__tests__/helpers/dndMock.tsx`: `DndContext` props 캡처, `dnd.start/over/end/cancel`, `useSensor` 호출 기록, `DragOverlay`는 자식을 항상 렌더링. 사용법은 파일 위쪽 주석 참조
+  - [X] jsdom 환경 확인(측정): dnd-kit은 폴리필 없이 오류 없이 렌더링되므로 `jest.setup.ts` 변경은 필요 없다. 반면 `fetch`·`Response`·`Request`·`ResizeObserver`·`matchMedia`·`PointerEvent`는 jsdom에 없다 → fetch는 `__tests__/helpers/fetchMock.ts`로 대체 (계획에 없던 항목을 측정 결과에 따라 추가)
+  - [X] `__tests__/helpers/renderWithDnd.tsx`: 실제 `DndContext`·`SortableContext`로 감싸 렌더링 (P3 `TicketCard`·`Column` 테스트용)
   - [X] `package.json`의 `test:components`에 `__tests__/lib` 추가 (D11)
-  - [ ] 확인: `npm run test:components`가 빈 폴더에서도 오류 없이 동작
+  - [X] `jest.config.mjs`에 `testMatch: **/__tests__/**/*.test.[jt]s?(x)` 추가 — 헬퍼 파일이 테스트로 실행되지 않게 하고, `test:components`에 `__tests__/helpers`를 포함
+  - [X] 확인: `npm run test:components`와 `npm run test` 통과
 - [X] **P0-4 스타일 선행 작업 정리**: `feature/frontend-styles`의 `globals.css`, `colors.json`을 커밋한다. 설명 영역(D7)용 `.card-desc`(2줄 말줄임)는 `globals.css`에 추가 완료했고, `.card-title`의 말줄임(TC-COMP-001-07)은 P3에서 보강한다.
 - [X] **P0-5 프리뷰 페이지 골격** (§1.5): `/preview` 갤러리와 레지스트리(빈 상태), 목 데이터, 프로덕션 404 가드를 만들고 테스트 19개로 검증했다. `npm run dev`에서 DB 없이 200 응답을 확인했다. 브랜치 `feature/frontend-preview`
 
@@ -603,7 +605,7 @@ graph LR
 
 | Phase | 항목 | 완료 |
 |-------|------|------|
-| P0 | 스펙 갭 결정 · TC 보강 · 테스트 지원 코드 · 스타일 커밋 · 프리뷰 페이지 | [ ] |
+| P0 | 스펙 갭 결정 · TC 보강 · 테스트 지원 코드 · 스타일 커밋 · 프리뷰 페이지 | [X] |
 | P1 | `ticketApi` · `boardUtils` · `useTickets` · `useTicket` | [ ] |
 | P2 | `Button` · `Badge` · `PriorityBadge` · `OverdueIndicator` · `Modal` · `ConfirmDialog` · `EmptyColumnState` · `BoardSkeleton` · `ErrorBanner` · `ErrorToast` | [ ] |
 | P3 | `ColumnHeader` · `TicketCard` · `Column` | [ ] |

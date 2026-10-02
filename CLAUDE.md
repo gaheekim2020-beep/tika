@@ -14,7 +14,7 @@ src/shared/에서 타입과 검증 스키마를 공유한다.
 - src/client/   : 프론트엔드 로직 (components, hooks, lib, api 호출)
 - src/shared/   : 공유 타입, Zod 스키마, 상수
 - docs/         : 프로젝트 명세 문서
-- __tests__/    : Jest 테스트 (api, components, hooks, lib, integration, services)
+- __tests__/    : Jest 테스트 (api, components, hooks, lib, helpers, integration, services)
 - drizzle/      : Drizzle 마이그레이션 SQL
 - .specify/     : Spec Kit 템플릿·스크립트 (SDD 워크플로우, constitution)
 - .claude/      : Claude Code 스킬/설정 (speckit-* 슬래시 스킬 포함)
@@ -158,7 +158,7 @@ npx tsc --noEmit        # 타입 체크
 ```
 
 #### 테스트 환경 설정
-- **컴포넌트 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/lib/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경 (기본값)
+- **컴포넌트 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/lib/`, `__tests__/helpers/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경 (기본값)
 - **서비스/API 테스트** (`__tests__/services/`, `__tests__/api/tickets*.test.ts`): `node` 환경 — 파일 상단에 `/** @jest-environment node */` 필수
 - **`--runInBand`**: 서비스 테스트가 공유 DB(`tika_test`)를 사용하므로 병렬 실행 시 race condition 발생. 순차 실행 필수
 

@@ -317,7 +317,7 @@ npm run db:seed       # 개발용 시드 데이터 생성
 
 ### 5.3 테스트: Jest + React Testing Library
 
-- **컴포넌트/훅/클라이언트 API 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/lib/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경(기본값) 사용.
+- **컴포넌트/훅/클라이언트 API 테스트** (`__tests__/components/`, `__tests__/hooks/`, `__tests__/lib/`, `__tests__/helpers/`, `__tests__/api/ticketApi.test.ts`): `jsdom` 환경(기본값) 사용.
 - **서비스/서버 API 테스트** (`__tests__/services/`, `__tests__/api/tickets*.test.ts`): `node` 환경 사용 — 파일 상단에 `/** @jest-environment node */` 명시 필수.
 - 서비스 테스트는 공유 테스트 DB(`tika_test`)를 사용하므로 `--runInBand`로 순차 실행하여 race condition을 방지한다.
 - TDD 사이클을 따른다: TEST_CASES.md의 테스트 케이스 확인 → 실패하는 테스트 작성(Red) → 최소 구현(Green) → 리팩토링(Refactor).
