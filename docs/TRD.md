@@ -255,9 +255,9 @@ const sensors = useSensors(
    → ticketApi.ts — fetch("/api/tickets/reorder", { method: "PATCH", body })
    → PATCH /api/tickets/reorder  (app/api/tickets/reorder/route.ts)
    → ticketService.reorderTicket()
-        - position 재계산: 인접 카드 사이 삽입 시 (prev + next) / 2
-        - 간격 1 미만 시 해당 칼럼 전체 1024 간격으로 재정렬
-        - TODO 진입 시 startedAt 기록 / BACKLOG 복귀 시 startedAt 초기화
+        - position 재계산: 인접 카드 사이 삽입 시 (prev + next) / 2를 올림한 정수 (클라이언트 계산, 서버는 요청값을 그대로 저장)
+        - 대상 칼럼의 다른 카드와 position이 같으면(간격 1 미만) 해당 칼럼 전체 1024 간격으로 재정렬
+        - TODO/IN_PROGRESS 진입 시 startedAt 미설정이면 기록 / BACKLOG 복귀 시 startedAt 초기화 / DONE 이탈 시 completedAt 초기화
         - 트랜잭션으로 status·position 동시 반영 (원자성 보장)
    → Drizzle 트랜잭션 (UPDATE)
    → PostgreSQL

@@ -328,7 +328,7 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 
 ### 5.5 Position 관리
 
-**정렬 방향**: 모든 칼럼은 `position` **오름차순**으로 정렬되며, 작은 값일수록 칼럼 상단에 표시된다.
+**정렬 방향**: 모든 칼럼은 `position` **오름차순**으로 정렬되며, 작은 값일수록 칼럼 상단에 표시된다. `position`이 같으면 `id` 오름차순으로 정렬해 항상 같은 순서가 되도록 한다.
 
 **신규 배치 규칙**:
 | 상황 | position 계산 | 근거 |
@@ -340,12 +340,13 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 **드래그앤드롭 재계산 로직** (FR-007, `PATCH /api/tickets/reorder`):
 | 삽입 위치 | 계산식 |
 |------|------|
-| 두 카드 사이 | `(prev.position + next.position) / 2` |
+| 두 카드 사이 | `(prev.position + next.position) / 2`를 **올림**한 정수 (클라이언트가 계산) |
 | 맨 앞 | `첫 번째 카드.position - 1024` |
 | 맨 뒤 | `마지막 카드.position + 1024` |
-| 간격이 1 미만 | 해당 칼럼 전체를 `1024` 간격으로 재정렬 |
+| 같은 값 충돌 (간격이 1 미만) | 서버가 해당 칼럼 전체를 `1024` 간격으로 재정렬 (이동 티켓이 같은 값을 가진 카드 앞) |
 
 - `position`은 `INTEGER`이므로 두 정수 사이 삽입을 무한히 반복하면 간격이 1 미만으로 좁아질 수 있다 — 이때 전체 재정렬이 트리거된다.
+- 서버는 클라이언트가 보낸 `position`을 그대로 저장하고, 이동 티켓을 제외한 대상 칼럼에 같은 값이 있을 때만 재정렬한다. 두 정수 사이에 정수가 없으면 올림 결과가 `next`와 같은 값이 되어 이 충돌 규칙으로 `next` 바로 앞에 놓인다 (API_SPEC.md §7).
 - 재정렬은 상태 이동이 발생한 해당 칼럼 내에서만 일어나며, 다른 칼럼의 `position` 값에는 영향을 주지 않는다.
 - 상태(`status`)와 `position`은 항상 함께, 트랜잭션으로 갱신된다 (FR-007) — 둘 중 하나만 반영되는 중간 상태는 허용되지 않는다.
 

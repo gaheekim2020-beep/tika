@@ -98,6 +98,27 @@ describe("ticketService", () => {
       ]);
     });
 
+    // TC-API-002-07: position이 같은 티켓은 id 오름차순 (정렬이 항상 같은 순서가 되도록)
+    it("같은 칼럼에서 position이 같은 티켓은 id 오름차순으로 정렬된다", async () => {
+      // 삽입 순서와 id 순서를 반대로 만들어, 보조 정렬이 없으면 순서가 뒤집히게 한다
+      await db.insert(tickets).values({
+        id: 2,
+        title: "id 2",
+        status: TICKET_STATUS.TODO,
+        position: 1024,
+      });
+      await db.insert(tickets).values({
+        id: 1,
+        title: "id 1",
+        status: TICKET_STATUS.TODO,
+        position: 1024,
+      });
+
+      const board = await getBoardData();
+
+      expect(board.TODO.map((t) => t.id)).toEqual([1, 2]);
+    });
+
     // TC-API-002-03: 티켓이 하나도 없는 상태에서 조회
     it("티켓이 하나도 없으면 4개 키 모두 빈 배열을 반환한다", async () => {
       const board = await getBoardData();

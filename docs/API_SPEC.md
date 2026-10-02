@@ -26,7 +26,7 @@
   }
 }
 ```
-`field`는 `VALIDATION_ERROR`가 단일 필드에 대한 검증 실패일 때만 포함한다 (예: `"title"`, `"dueDate"`). 여러 필드가 동시에 실패하거나 필드 단위로 특정할 수 없는 경우 생략한다. 프론트엔드는 `field`가 있으면 해당 입력 필드 아래에, 없으면 폼 상단에 `message`를 표시한다 (COMPONENT_SPEC.md §6.2 `TicketForm` 참조).
+`field`는 `VALIDATION_ERROR` 응답에서 **첫 번째로 실패한 검증**이 특정 필드에 대한 것일 때 포함한다 (예: `"title"`, `"dueDate"`). 여러 필드가 동시에 실패해도 응답에는 첫 번째 실패(스키마에 정의된 필드 순서) 하나만 담는다. 요청 본문 전체가 잘못되어 필드로 특정할 수 없거나, 명세가 생략을 정한 경우(`PATCH /api/tickets/reorder`의 `status` 오류)에는 `field`를 생략한다. 프론트엔드는 `field`가 있으면 해당 입력 필드 아래에, 없으면 폼 상단에 `message`를 표시한다 (COMPONENT_SPEC.md §6.2 `TicketForm` 참조).
 
 ### 공통 HTTP 상태 코드
 | 상태 코드 | 의미 | 사용 시점 |
@@ -84,7 +84,7 @@
 ```json
 {
   "title": "string",
-  "description": "string | null (optional)",
+  "description": "string (optional)",
   "priority": "LOW | MEDIUM | HIGH (optional, default: MEDIUM)",
   "plannedStartDate": "ISO 8601 date (optional)",
   "dueDate": "ISO 8601 date (optional)"
@@ -94,7 +94,7 @@
 | 필드 | 타입 | 필수 | 제약조건 | 기본값 |
 |------|------|------|----------|--------|
 | title | string | O | 1~200자, 공백만 불가 | - |
-| description | string \| null | X | 최대 1000자 | null |
+| description | string | X | 최대 1000자, `null`은 허용하지 않음 (생략하면 `null`로 저장) | null |
 | priority | enum | X | LOW, MEDIUM, HIGH | MEDIUM |
 | plannedStartDate | date string | X | ISO 8601 | null |
 | dueDate | date string | X | 오늘 이후 날짜 | null |
@@ -133,6 +133,7 @@
 | 설명 1000자 초과 | VALIDATION_ERROR | description | 설명은 1000자 이내로 입력해주세요 |
 | 잘못된 우선순위 값 | VALIDATION_ERROR | priority | 우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요 |
 | 과거 종료예정일 | VALIDATION_ERROR | dueDate | 종료예정일은 오늘 이후 날짜를 선택해주세요 |
+| 요청 본문이 JSON이 아니거나 객체가 아님 | VALIDATION_ERROR | (없음) | 요청 본문이 올바른 JSON 형식이 아닙니다 |
 
 **500 Internal Server Error**
 ```json
@@ -150,7 +151,7 @@
 
 ### 처리 규칙
 - 전체 티켓을 조회하여 4개 상태(`BACKLOG`, `TODO`, `IN_PROGRESS`, `DONE`)별로 그룹화
-- 각 컬럼 내 `position` 오름차순 정렬
+- 각 컬럼 내 `position` 오름차순 정렬 (같은 값이면 `id` 오름차순)
 - 각 티켓에 `isOverdue` 파생 필드 포함 (FR-008 규칙 적용)
 - `DONE` 컬럼은 `completedAt` 기준 24시간 이내 완료된 티켓만 포함 (FR-005)
 

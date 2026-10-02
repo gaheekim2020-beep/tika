@@ -2,6 +2,17 @@ import { NextResponse } from "next/server";
 import { createTicketSchema } from "@/shared/validations/ticket";
 import { createTicket, getBoardData } from "@/server/services/ticketService";
 
+const invalidBodyResponse = (): Response =>
+  NextResponse.json(
+    {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "요청 본문이 올바른 JSON 형식이 아닙니다",
+      },
+    },
+    { status: 400 }
+  );
+
 export async function GET(): Promise<Response> {
   try {
     const board = await getBoardData();
@@ -15,11 +26,23 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const body: unknown = await request.json();
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return invalidBodyResponse();
+  }
+
   const parsed = createTicketSchema.safeParse(body);
 
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
+
+    // path가 비어 있으면 특정 필드가 아니라 본문 전체(객체가 아님)가 잘못된 것이다
+    if (issue.path.length === 0) {
+      return invalidBodyResponse();
+    }
+
     return NextResponse.json(
       {
         error: {

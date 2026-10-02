@@ -214,6 +214,27 @@ describe("POST /api/tickets", () => {
       message: "종료예정일은 오늘 이후 날짜를 선택해주세요",
     });
   });
+
+  // TC-API-001-14: 요청 본문이 JSON이 아니거나 객체가 아님
+  it.each([["not json"], ["[]"]])(
+    "본문이 %s이면 400 VALIDATION_ERROR이고 field 없이 JSON 형식 오류 메시지가 온다",
+    async (rawBody) => {
+      const res = await POST(
+        new Request("http://localhost/api/tickets", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: rawBody,
+        })
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(400);
+      expect(body.error).toEqual({
+        code: "VALIDATION_ERROR",
+        message: "요청 본문이 올바른 JSON 형식이 아닙니다",
+      });
+    }
+  );
 });
 
 // TC-API-001-13: DB 오류 등 예상치 못한 서버 오류
@@ -1622,6 +1643,33 @@ describe("PATCH /api/tickets/reorder - 서버 오류", () => {
     expect(body.error).toEqual({
       code: "INTERNAL_ERROR",
       message: "티켓 순서를 변경하지 못했습니다",
+    });
+  });
+});
+
+// TC-API-COMMON-04: 여러 필드가 동시에 실패하면 첫 번째 실패 하나만 반환한다
+describe("400 에러 응답 - 여러 필드가 동시에 실패하는 경우", () => {
+  it("POST: title 누락과 priority 오류가 함께 있으면 스키마 순서상 첫 실패인 title만 field로 반환한다", async () => {
+    const res = await POST(makeRequest({ priority: "URGENT" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toEqual({
+      code: "VALIDATION_ERROR",
+      field: "title",
+      message: "제목을 입력해주세요",
+    });
+  });
+
+  it("reorder: ticketId와 status가 함께 잘못되면 첫 실패인 ticketId만 field로 반환한다", async () => {
+    const res = await REORDER(makeReorderRequest({ ticketId: 0, status: "ARCHIVED", position: 1024 }));
+    const body = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(body.error).toEqual({
+      code: "VALIDATION_ERROR",
+      field: "ticketId",
+      message: "유효하지 않은 티켓 ID입니다",
     });
   });
 });

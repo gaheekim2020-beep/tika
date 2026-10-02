@@ -264,6 +264,7 @@ function useTickets(initialData: BoardData): UseTicketsReturn;
         → PATCH /api/tickets/:id/complete
         → completedAt 자동 설정 (Done 칼럼에는 completedAt 기준 24시간 이내인 동안만 표시, DATA_MODEL.md §5.4)
     2-b. [대상 = BACKLOG / TODO / IN_PROGRESS]
+        → position 계산 (클라이언트, API_SPEC.md §7): 두 카드 사이 = (prev + next) / 2를 올림한 정수, 맨 앞 = 첫 카드 position - 1024, 맨 뒤 = 마지막 카드 position + 1024
         → 낙관적 업데이트 (board 상태 즉시 반영)
         → Board.onReorder(ticketId, status, position) prop 호출 → BoardContainer → useTickets.reorder(...)
         → PATCH /api/tickets/reorder

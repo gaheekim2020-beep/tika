@@ -68,6 +68,7 @@
 | TC-API-001-11 | 잘못된 우선순위 값 | `priority="URGENT"` (허용값 외) | 400, `error.field="priority"`, `error.message="우선순위는 LOW, MEDIUM, HIGH 중 선택해주세요"` |
 | TC-API-001-12 | 과거 종료예정일 | `dueDate` = 어제 날짜 | 400, `error.field="dueDate"`, `error.message="종료예정일은 오늘 이후 날짜를 선택해주세요"` |
 | TC-API-001-13 | DB 오류 등 예상치 못한 서버 오류 | 서비스 계층에서 예외 발생(mock) | 500, `error.code="INTERNAL_ERROR"` |
+| TC-API-001-14 | 요청 본문이 JSON이 아니거나 객체가 아님 | body=`not json` 또는 `[]` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="요청 본문이 올바른 JSON 형식이 아닙니다"` |
 
 ---
 
@@ -82,6 +83,7 @@
 | TC-API-002-03 | 티켓이 하나도 없는 상태에서 조회 | 전체 티켓 0개 | 200, `{ BACKLOG: [], TODO: [], IN_PROGRESS: [], DONE: [] }` |
 | TC-API-002-04 | `completedAt`이 24시간 이내인 DONE 티켓 조회 | `status="DONE"`, `completedAt`=1시간 전 | 200, `DONE` 배열에 포함됨 |
 | TC-API-002-05 | `completedAt`이 24시간을 초과한 DONE 티켓 조회 | `status="DONE"`, `completedAt`=25시간 전 | 200, `DONE` 배열에서 제외됨 (다른 칼럼 배열에도 나타나지 않음) |
+| TC-API-002-07 | 같은 칼럼에서 `position`이 같은 티켓 조회 | 한 칼럼에 `position`이 같은 티켓 2개 (삽입 순서와 `id` 순서가 반대) | 200, 해당 칼럼 배열이 `id` 오름차순 |
 
 **예외 케이스**
 
@@ -220,7 +222,7 @@
 | TC-API-007-11 | 대상 상태로 `DONE`을 요청 | `{ status: "DONE" }` | 400, `error.code="VALIDATION_ERROR"`, `error.message="상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요"` |
 | TC-API-007-12 | 허용되지 않는 임의의 상태 문자열 | `{ status: "ARCHIVED" }` | 400, `error.code="VALIDATION_ERROR"` |
 | TC-API-007-13 | 존재하지 않는 `ticketId` | `ticketId=999999` | 404, `error.code="TICKET_NOT_FOUND"`, `error.message="존재하지 않거나 삭제된 티켓입니다"` |
-| TC-API-007-14 | 트랜잭션 도중 일부만 반영되고 나머지가 실패하는 상황 방지 (원자성) | DB 오류 mock: `status` UPDATE는 성공, 이어지는 `position` UPDATE에서 실패하도록 조작 | `status`/`position` 어느 쪽도 반영되지 않음 (전체 롤백), 500 또는 적절한 에러 응답 |
+| TC-API-007-14 | 트랜잭션 도중 일부만 반영되고 나머지가 실패하는 상황 방지 (원자성) | 충돌 재정렬 경로(여러 UPDATE)에서 이동 티켓 UPDATE는 성공하고 이어지는 다른 티켓의 `position` UPDATE(`tx.update` 두 번째 호출)에서 DB 오류 주입. 정상 경로는 `status`·`position`을 하나의 UPDATE로 쓰므로 부분 반영 상태가 구조적으로 생기지 않는다 | 예외가 호출자에게 전파되고(라우트에서는 500), 이동 티켓을 포함한 모든 티켓의 `status`/`position`/`startedAt`/`completedAt`/`updatedAt`이 요청 전 값 그대로 (전체 롤백) |
 | TC-API-007-15 | `ticketId` 형식 오류 | `ticketId`가 `0`, `-1`, `"abc"`, 누락 | 400, `error.code="VALIDATION_ERROR"`, `error.field="ticketId"`, `error.message="유효하지 않은 티켓 ID입니다"` |
 | TC-API-007-16 | `position` 형식 오류 | `position`이 누락, `"abc"`, `1.5`, 32비트 범위 초과 | 400, `error.code="VALIDATION_ERROR"`, `error.field="position"`, `error.message="위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요"` |
 | TC-API-007-17 | 요청 본문이 JSON이 아니거나 객체가 아님 | body=`not json` 또는 `[]` | 400, `error.code="VALIDATION_ERROR"`, `error.field` 없음, `error.message="요청 본문이 올바른 JSON 형식이 아닙니다"` |
@@ -263,8 +265,9 @@
 | 번호 | 시나리오 | 조건 | 기대 결과 |
 |------|------|------|------|
 | TC-API-COMMON-01 | 모든 성공 응답이 wrapper 없이 리소스를 그대로 반환하는지 | 임의의 성공 응답 | 응답 최상위에 `data` 등 별도 wrapper 키 없이 리소스 필드가 바로 위치 |
-| TC-API-COMMON-02 | 필드 단위로 특정 가능한 400 에러에 `field`가 포함되는지 | 단일 필드 검증 실패 케이스 | `error.field`에 해당 필드명 포함 |
-| TC-API-COMMON-03 | 필드 특정이 불가능한 400 에러에는 `field`가 생략되는지 | 여러 필드 동시 실패 또는 `status` 같은 필드 무관 오류 | `error.field` 키 자체가 응답에 없음 |
+| TC-API-COMMON-02 | 첫 번째 검증 실패가 특정 필드에 대한 400 에러에 `field`가 포함되는지 | 단일 필드 검증 실패 케이스 | `error.field`에 해당 필드명 포함 |
+| TC-API-COMMON-03 | 필드로 특정할 수 없거나 명세가 생략을 정한 400 에러에는 `field`가 생략되는지 | 요청 본문 전체가 잘못된 경우(`not json`, `[]`) 또는 reorder의 `status` 오류 | `error.field` 키 자체가 응답에 없음 |
+| TC-API-COMMON-04 | 여러 필드가 동시에 실패하면 첫 번째 실패 하나만 반환하는지 | `POST /api/tickets`에 `title` 누락 + `priority` 잘못된 값, `PATCH /api/tickets/reorder`에 `ticketId=0` + 잘못된 `status` | 400, 오류는 하나만 반환되고 스키마 정의 순서상 첫 실패 필드가 `error.field`(각각 `title`, `ticketId`) |
 
 ---
 

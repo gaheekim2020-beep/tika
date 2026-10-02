@@ -248,7 +248,7 @@ export async function getBoardData(): Promise<BoardData> {
   const rows = await db
     .select()
     .from(tickets)
-    .orderBy(asc(tickets.status), asc(tickets.position));
+    .orderBy(asc(tickets.status), asc(tickets.position), asc(tickets.id));
 
   const board = COLUMN_ORDER.reduce((acc, status) => {
     acc[status] = [];
