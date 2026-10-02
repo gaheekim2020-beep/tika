@@ -1,26 +1,355 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Tika 디자인 토큰 — docs/DESIGN_SYSTEM.md §1, 값의 원본은 src/shared/design/colors.json
+ * 컬러를 바꿀 때는 colors.json과 이 파일을 함께 수정한다.
+ * `static`: 사용하지 않는 토큰도 CSS 변수(:root)로 항상 내보낸다.
+ * 라이트 모드만 지원한다 (DESIGN_SYSTEM.md §4).
+ */
+@theme static {
+  --color-bg-page: #f9fafb;
+  --color-bg-surface: #ffffff;
+  --color-bg-sidebar: #f3f4f6;
+
+  --color-border-default: #e5e7eb;
+  --color-border-strong: #d1d5db;
+
+  --color-text-primary: #111827;
+  --color-text-secondary: #6b7280;
+  --color-text-placeholder: #9ca3af;
+  --color-text-inverse: #ffffff;
+
+  --color-brand-primary: #4f46e5;
+  --color-brand-primary-hover: #4338ca;
+
+  --color-priority-low-bg: #f3f4f6;
+  --color-priority-low-text: #4b5563;
+  --color-priority-medium-bg: #dbeafe;
+  --color-priority-medium-text: #1d4ed8;
+  --color-priority-high-bg: #fee2e2;
+  --color-priority-high-text: #b91c1c;
+
+  --color-status-overdue-bg: #fef2f2;
+  --color-status-overdue-text: #dc2626;
+  --color-status-overdue-border: #fca5a5;
+  --color-status-danger-bg: #fee2e2;
+  --color-status-danger-text: #b91c1c;
+  --color-status-success-bg: #dcfce7;
+  --color-status-success-text: #15803d;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-geist-sans), "Apple SD Gothic Neo", "Malgun Gothic",
+    "Noto Sans KR", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  color-scheme: light;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-page font-sans text-sm text-text-primary;
+    line-height: 1.5;
+  }
+
+  /* 키보드 포커스 링 (NFR-003) */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+  }
+
+  ::placeholder {
+    color: var(--color-text-placeholder);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * 컴포넌트 스타일 — docs/COMPONENT_SPEC.md, docs/reference/image 의 와이어프레임·트렐로 참고
+ * 간격·라운딩·그림자는 DESIGN_SYSTEM.md §2~3의 Tailwind 스케일을 따른다.
+ */
+@layer components {
+  /* ---------- 상단 헤더 (BoardHeader) ---------- */
+  .topbar {
+    @apply sticky top-0 z-10 flex items-center justify-between gap-4 border-b border-border-default bg-bg-page px-4 py-3 md:px-6;
+  }
+
+  .topbar-actions {
+    @apply flex min-w-0 items-center gap-2;
+  }
+
+  .logo {
+    @apply flex items-center gap-2 text-[17px] font-bold tracking-tight;
+  }
+
+  .logo-mark {
+    @apply inline-flex size-[22px] items-center justify-center rounded-md bg-brand-primary text-xs font-bold text-text-inverse;
+  }
+
+  /* 검색은 2차 구현이라 비활성 placeholder로만 렌더링한다 */
+  .search-input {
+    @apply h-[34px] w-32 rounded-md border border-border-default bg-bg-surface px-3 text-[13px] sm:w-56;
+  }
+
+  .search-input:disabled {
+    @apply cursor-not-allowed bg-bg-sidebar;
+  }
+
+  /* ---------- 보드 레이아웃 (COMPONENT_SPEC §2) ---------- */
+  /* 모바일: 4칼럼 세로 / 태블릿: 2칼럼 / 데스크톱: Backlog 사이드바 + 3칼럼 */
+  .board {
+    @apply flex flex-col items-stretch gap-4 p-4 md:grid md:grid-cols-2 md:items-start md:p-6 lg:grid-cols-[280px_1fr_1fr_1fr];
+  }
+
+  /* ---------- 칼럼 (Column / ColumnHeader) ---------- */
+  .column {
+    @apply flex min-h-32 flex-col rounded-xl border border-border-default bg-bg-surface p-4;
+  }
+
+  .column--backlog {
+    @apply bg-bg-sidebar;
+  }
+
+  /* 드래그 중 드롭 대상 칼럼 하이라이트 (onDragOver) */
+  .column--over {
+    @apply border-brand-primary ring-2 ring-brand-primary/30;
+  }
+
+  .column-header {
+    @apply mb-3 flex items-center justify-between gap-2;
+  }
+
+  .column-title {
+    @apply text-[13px] font-bold tracking-wide text-text-secondary uppercase;
+  }
+
+  .column-count {
+    @apply min-w-5 rounded-full border border-border-default bg-bg-page px-2 text-center font-mono text-[11.5px] text-text-secondary;
+  }
+
+  .card-list {
+    @apply flex min-h-24 flex-1 flex-col gap-2;
+  }
+
+  /* DONE 칼럼의 "24시간 지난 완료 항목은 표시되지 않아요" 안내 */
+  .column-note {
+    @apply mt-3 text-center text-xs text-text-placeholder;
+  }
+
+  .empty-state {
+    @apply rounded-lg border-[1.5px] border-dashed border-border-strong px-3 py-7 text-center text-[12.5px] text-text-placeholder;
+  }
+
+  /* ---------- 카드 (TicketCard) ---------- */
+  .card {
+    @apply cursor-pointer rounded-lg border border-border-default bg-bg-surface p-3 shadow-sm transition-shadow hover:border-border-strong hover:shadow-md;
+  }
+
+  /* 지연 카드: 테두리만 강조하고 배경은 바꾸지 않는다 (DESIGN_SYSTEM §1) */
+  .card--overdue,
+  .card--overdue:hover {
+    @apply border-status-overdue-border;
+  }
+
+  .card--done {
+    @apply opacity-75;
+  }
+
+  /* 드래그 중 원래 자리에 남는 카드 */
+  .card--dragging {
+    @apply opacity-40;
+  }
+
+  /* DragOverlay 미리보기 */
+  .card--overlay {
+    @apply rotate-2 cursor-grabbing shadow-lg;
+  }
+
+  .card-title {
+    @apply mb-2 text-[13.5px] leading-snug font-semibold;
+  }
+
+  /* 설명은 있을 때만 제목 아래에 최대 2줄까지 표시한다 (와이어프레임 기준) */
+  .card-desc {
+    @apply mb-2 line-clamp-2 text-[12.5px] leading-snug text-text-secondary;
+  }
+
+  .card-meta {
+    @apply flex flex-wrap items-center gap-1.5;
+  }
+
+  .card-due {
+    @apply mt-2 font-mono text-[11.5px] text-text-secondary;
+  }
+
+  .card-due--overdue {
+    @apply font-semibold text-status-overdue-text;
+  }
+
+  /* ---------- 배지 (Badge / PriorityBadge / OverdueIndicator) ---------- */
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold;
+  }
+
+  .badge--low {
+    @apply bg-priority-low-bg text-priority-low-text;
+  }
+
+  .badge--medium {
+    @apply bg-priority-medium-bg text-priority-medium-text;
+  }
+
+  .badge--high {
+    @apply bg-priority-high-bg text-priority-high-text;
+  }
+
+  .badge--overdue {
+    @apply bg-status-overdue-bg text-status-overdue-text;
+  }
+
+  .badge--neutral {
+    @apply bg-bg-sidebar text-text-secondary;
+  }
+
+  /* ---------- 버튼 (Button) ---------- */
+  .btn {
+    @apply inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-md border border-transparent px-4 py-2 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn--sm {
+    @apply px-3 py-1 text-xs;
+  }
+
+  .btn--lg {
+    @apply px-5 py-2.5 text-sm;
+  }
+
+  .btn--primary {
+    @apply bg-brand-primary text-text-inverse hover:bg-brand-primary-hover;
+  }
+
+  .btn--secondary {
+    @apply border-border-strong bg-transparent text-text-primary hover:bg-bg-sidebar;
+  }
+
+  .btn--danger {
+    @apply bg-status-danger-bg text-status-danger-text hover:border-status-danger-text;
+  }
+
+  .btn--ghost {
+    @apply bg-transparent text-text-secondary hover:bg-bg-sidebar;
+  }
+
+  /* isLoading 스피너 */
+  .btn-spinner {
+    @apply size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent;
+  }
+
+  /* ---------- 모달 (Modal / TicketFormModal / TicketModal / ConfirmDialog) ---------- */
+  .modal-overlay {
+    @apply fixed inset-0 z-40 flex items-center justify-center bg-text-primary/40 p-4;
+  }
+
+  .modal {
+    @apply max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border-default bg-bg-surface p-5 shadow-lg;
+    animation: modal-in 150ms ease-out;
+  }
+
+  .modal-title {
+    @apply mb-4 text-[15px] font-bold;
+  }
+
+  .modal-actions {
+    @apply mt-5 flex justify-end gap-2 border-t border-border-default pt-4;
+  }
+
+  /* TicketDetailView (읽기 전용 필드) */
+  .detail-list {
+    @apply mb-4 rounded-lg border border-border-default bg-bg-page px-3;
+  }
+
+  .detail-row {
+    @apply flex items-center justify-between border-b border-border-default py-2 text-[12.5px] last:border-b-0;
+  }
+
+  .detail-label {
+    @apply text-text-secondary;
+  }
+
+  .detail-value {
+    @apply font-semibold;
+  }
+
+  /* ---------- 폼 (TicketForm) ---------- */
+  .form-field {
+    @apply mb-3.5;
+  }
+
+  .form-row {
+    @apply flex flex-col gap-0 sm:flex-row sm:gap-2.5;
+  }
+
+  .form-row > .form-field {
+    @apply flex-1;
+  }
+
+  .form-label {
+    @apply mb-1 block text-xs font-semibold text-text-secondary;
+  }
+
+  .form-control {
+    @apply h-[34px] w-full rounded-md border border-border-default bg-bg-page px-2.5 text-[12.5px] text-text-primary;
+  }
+
+  textarea.form-control {
+    @apply h-auto min-h-16 resize-y py-2;
+  }
+
+  .form-control:focus {
+    @apply border-brand-primary bg-bg-surface;
+  }
+
+  .form-control[aria-invalid="true"] {
+    @apply border-status-overdue-text;
+  }
+
+  .form-error {
+    @apply mt-1 text-xs text-status-overdue-text;
+  }
+
+  /* ---------- 로딩 / 오류 (BoardSkeleton / ErrorBanner / ErrorToast) ---------- */
+  .skeleton {
+    @apply animate-pulse rounded-lg bg-border-default;
+  }
+
+  .banner-error {
+    @apply m-4 flex items-center justify-between gap-3 rounded-lg border border-status-overdue-border bg-status-overdue-bg px-4 py-3 text-status-overdue-text md:m-6;
+  }
+
+  .toast {
+    @apply fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-md bg-status-danger-bg px-4 py-2 text-[13px] font-semibold text-status-danger-text shadow-lg;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* 움직임을 줄이도록 설정한 사용자는 애니메이션·전환을 사실상 끈다 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

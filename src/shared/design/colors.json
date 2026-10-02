@@ -1,0 +1,31 @@
+{
+  "background": {
+    "page": "#F9FAFB",
+    "surface": "#FFFFFF",
+    "sidebar": "#F3F4F6"
+  },
+  "border": {
+    "default": "#E5E7EB",
+    "strong": "#D1D5DB"
+  },
+  "text": {
+    "primary": "#111827",
+    "secondary": "#6B7280",
+    "placeholder": "#9CA3AF",
+    "inverse": "#FFFFFF"
+  },
+  "brand": {
+    "primary": "#4F46E5",
+    "primaryHover": "#4338CA"
+  },
+  "priority": {
+    "low": { "bg": "#F3F4F6", "text": "#4B5563" },
+    "medium": { "bg": "#DBEAFE", "text": "#1D4ED8" },
+    "high": { "bg": "#FEE2E2", "text": "#B91C1C" }
+  },
+  "status": {
+    "overdue": { "bg": "#FEF2F2", "text": "#DC2626", "border": "#FCA5A5" },
+    "danger": { "bg": "#FEE2E2", "text": "#B91C1C" },
+    "success": { "bg": "#DCFCE7", "text": "#15803D" }
+  }
+}
