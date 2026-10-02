@@ -157,3 +157,48 @@
 **TC 번호가 없는 테스트** (해당 계층 고유 검증)
 - [다른 칼럼의 티켓은 영향받지 않는다](../__tests__/services/ticketService.test.ts#L576)
 - [같은 id를 동시에 삭제하면 한쪽만 true다](../__tests__/services/ticketService.test.ts#L608) — `RETURNING` 기반 판정 검증
+
+---
+
+## PATCH /api/tickets/reorder (US-005, FR-007) — specs/007-reorder-ticket-api
+
+| 계층 | 위치 |
+|------|------|
+| Route Handler | [`PATCH`](../app/api/tickets/reorder/route.ts#L16) |
+| 검증 스키마 | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| 서비스 | [`reorderTicket`](../src/server/services/ticketService.ts#L178), 시각 규칙 [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+
+| TC | 시나리오 | API 테스트 | 서비스 테스트 | Route 동작 | 스키마 / 서비스 |
+|----|------|------|------|------|------|
+| TC-API-007-01 | 같은 칼럼 두 카드 사이로 이동 | [두 티켓 사이 값으로 이동](../__tests__/api/tickets.test.ts#L1202) | [요청한 position 저장](../__tests__/services/ticketService.test.ts#L651) | [200 응답](../app/api/tickets/reorder/route.ts#L66) | [충돌 없음 분기](../src/server/services/ticketService.ts#L209) |
+| TC-API-007-02 | 칼럼 맨 앞으로 이동 | [맨 앞 값으로 이동](../__tests__/api/tickets.test.ts#L1216) | [맨 앞이 된다](../__tests__/services/ticketService.test.ts#L664) | - | [충돌 없음 분기](../src/server/services/ticketService.ts#L209) |
+| TC-API-007-03 | 칼럼 맨 뒤로 이동 | [맨 뒤 값으로 이동](../__tests__/api/tickets.test.ts#L1229) | [마지막이 된다](../__tests__/services/ticketService.test.ts#L675) | - | [충돌 없음 분기](../src/server/services/ticketService.ts#L209) |
+| TC-API-007-04 | 충돌 시 1024 간격 재정렬 (이동 티켓이 앞) | [기존 티켓과 같으면 재정렬](../__tests__/api/tickets.test.ts#L1242) | [재정렬](../__tests__/services/ticketService.test.ts#L718), [인접 정수 1024/1025](../__tests__/services/ticketService.test.ts#L731) | - | [`ordered` 재할당](../src/server/services/ticketService.ts#L218) |
+| TC-API-007-05 | BACKLOG → TODO, startedAt 기록 | [startedAt 기록](../__tests__/api/tickets.test.ts#L1340) | [현재 시각 설정](../__tests__/services/ticketService.test.ts#L784) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-06 | BACKLOG → IN_PROGRESS 직접 이동 | [직접 이동](../__tests__/api/tickets.test.ts#L1356) | [직접 이동](../__tests__/services/ticketService.test.ts#L798) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-07 | 기존 startedAt 유지 | [startedAt 유지](../__tests__/api/tickets.test.ts#L1370) | [TODO ↔ IN_PROGRESS](../__tests__/services/ticketService.test.ts#L812) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-08 | TODO → BACKLOG, startedAt 초기화 | [startedAt=null](../__tests__/api/tickets.test.ts#L1384) | [startedAt=null](../__tests__/services/ticketService.test.ts#L824) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-25 | IN_PROGRESS·DONE → BACKLOG | [it.each 2개 상태](../__tests__/api/tickets.test.ts#L1396) | [IN_PROGRESS](../__tests__/services/ticketService.test.ts#L833), [DONE](../__tests__/services/ticketService.test.ts#L845) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-09 | DONE → 다른 칼럼, completedAt 초기화 | [DONE → TODO](../__tests__/api/tickets.test.ts#L1415) | [it.each 3개 칼럼](../__tests__/services/ticketService.test.ts#L860) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-10 | DONE 아닌 칼럼 간 이동 | [completedAt 계속 null](../__tests__/api/tickets.test.ts#L1431) | [completedAt 계속 null](../__tests__/services/ticketService.test.ts#L890) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-11 | 대상 status가 DONE → 400 (field 없음) | [DONE 거절](../__tests__/api/tickets.test.ts#L1497) | - | [status 분기](../app/api/tickets/reorder/route.ts#L34) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| TC-API-007-12 | 허용되지 않는 status 문자열 | [ARCHIVED 거절](../__tests__/api/tickets.test.ts#L1510) | - | [status 분기](../app/api/tickets/reorder/route.ts#L34) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| TC-API-007-13 | 없는 ticketId → 404 | [404 TICKET_NOT_FOUND](../__tests__/api/tickets.test.ts#L1535) | [null 반환](../__tests__/services/ticketService.test.ts#L962) | [404 응답](../app/api/tickets/reorder/route.ts#L55) | [`reorderTicket`](../src/server/services/ticketService.ts#L178) |
+| TC-API-007-14 | 트랜잭션 원자성 (롤백) | - | [두 번째 UPDATE 실패 시 롤백](../__tests__/services/ticketService.test.ts#L978) | - | [`db.transaction`](../src/server/services/ticketService.ts#L184) |
+| TC-API-007-15 | ticketId 형식 오류 | [it.each 4개 값](../__tests__/api/tickets.test.ts#L1547) | - | [field 포함 400](../app/api/tickets/reorder/route.ts#L45) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| TC-API-007-16 | position 형식·범위 오류 | [it.each 4개 값](../__tests__/api/tickets.test.ts#L1566) | - | [field 포함 400](../app/api/tickets/reorder/route.ts#L45) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| TC-API-007-17 | 본문이 JSON이 아니거나 객체가 아님 | [it.each 2개 본문](../__tests__/api/tickets.test.ts#L1585) | - | [본문 오류 400](../app/api/tickets/reorder/route.ts#L29) | - |
+| TC-API-007-18 | status 누락 | [status 누락](../__tests__/api/tickets.test.ts#L1522) | - | [status 분기](../app/api/tickets/reorder/route.ts#L34) | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) |
+| TC-API-007-19 | 같은 칼럼 같은 위치로 이동 | [배치 그대로](../__tests__/api/tickets.test.ts#L1257) | [충돌 아님](../__tests__/services/ticketService.test.ts#L707) | - | [자기 자신 제외](../src/server/services/ticketService.ts#L197) |
+| TC-API-007-20 | 빈 칼럼으로 이동 | [유일한 항목](../__tests__/api/tickets.test.ts#L1270) | [요청 position 저장](../__tests__/services/ticketService.test.ts#L697) | - | [충돌 없음 분기](../src/server/services/ticketService.ts#L209) |
+| TC-API-007-21 | 다른 필드 불변 | [다른 키가 와도 불변](../__tests__/api/tickets.test.ts#L1282) | [필드 불변·updatedAt 갱신](../__tests__/services/ticketService.test.ts#L758) | - | [`reorderTicketSchema`](../src/shared/validations/ticket.ts#L78) (정의되지 않은 키 제거) |
+| TC-API-007-22 | 서비스 예외 → 500 | [500 INTERNAL_ERROR](../__tests__/api/tickets.test.ts#L1608) | - | [INTERNAL_ERROR 500](../app/api/tickets/reorder/route.ts#L67) | - |
+| TC-API-007-23 | 보드 목록과 같은 응답 형식 | [wrapper 없는 4개 키](../__tests__/api/tickets.test.ts#L1313) | [4개 칼럼 보드 반환](../__tests__/services/ticketService.test.ts#L685) | [200 응답](../app/api/tickets/reorder/route.ts#L66) | [`getBoardData`](../src/server/services/ticketService.ts#L247) |
+| TC-API-007-24 | 숨겨진 DONE 티켓 이동 | [completedAt=null, TODO에 나타남](../__tests__/api/tickets.test.ts#L1448) | [숨겨진 DONE 이동](../__tests__/services/ticketService.test.ts#L901) | - | [`getReorderTimestampChanges`](../src/server/services/ticketService.ts#L158) |
+| TC-API-007-26 | 충돌 재정렬이 다른 칼럼에 영향 없음 | - | [다른 칼럼 불변](../__tests__/services/ticketService.test.ts#L743) | - | [대상 칼럼만 조회](../src/server/services/ticketService.ts#L197) |
+
+**TC 번호가 없는 테스트** (해당 계층 고유 검증)
+- [startedAt이 있는 DONE 티켓을 TODO로 이동하면 startedAt은 유지된다](../__tests__/services/ticketService.test.ts#L876)
+- [BACKLOG 안에서 순서만 바꾸면 startedAt은 null로 유지된다](../__tests__/services/ticketService.test.ts#L914)
+- [충돌 재정렬 경로로 이동해도 startedAt이 null이면 현재 시각이 되고 completedAt은 null이 된다](../__tests__/services/ticketService.test.ts#L923)
+- [충돌 재정렬 경로에서도 이미 있는 startedAt은 유지되고 completedAt만 null이 된다](../__tests__/services/ticketService.test.ts#L943)

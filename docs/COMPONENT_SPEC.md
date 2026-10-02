@@ -267,7 +267,7 @@ function useTickets(initialData: BoardData): UseTicketsReturn;
         → 낙관적 업데이트 (board 상태 즉시 반영)
         → Board.onReorder(ticketId, status, position) prop 호출 → BoardContainer → useTickets.reorder(...)
         → PATCH /api/tickets/reorder
-        → startedAt 규칙 적용 (TODO/IN_PROGRESS 진입 시 미설정이면 설정, TODO→BACKLOG 복귀 시 초기화 — DATA_MODEL.md §5.1)
+        → startedAt 규칙 적용 (TODO/IN_PROGRESS 진입 시 미설정이면 설정, BACKLOG 복귀 시 초기화 — DATA_MODEL.md §5.1)
         → completedAt 규칙 적용 (DONE에서 벗어날 때 초기화 — DATA_MODEL.md §5.2)
     3. 성공: board를 서버 응답으로 확정
     4. 실패: 이전 board 상태로 조용히 롤백 (별도 토스트 없음, §7)

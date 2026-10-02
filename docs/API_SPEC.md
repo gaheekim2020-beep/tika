@@ -375,20 +375,21 @@
 |------|------|------|------|
 | ticketId | number | O | 이동할 티켓 ID |
 | status | enum | O | 이동 대상 칼럼 (`BACKLOG`, `TODO`, `IN_PROGRESS`만 허용, `DONE` 불가) |
-| position | number | O | 칼럼 내 새 위치 |
+| position | number | O | 칼럼 내 새 위치. 클라이언트가 아래 재계산 규칙대로 계산한 최종 순서값(정수, -2147483648 ~ 2147483647) |
 
 > `DONE`으로의 이동은 이 API에서 허용하지 않는다. `PATCH /api/tickets/:id/complete` (FR-005)를 사용한다.
 
 ### 처리 규칙
 - `status`와 `position`을 트랜잭션으로 원자적 업데이트
 - **position 재계산 로직**:
-  - 두 카드 사이 삽입: `(prev + next) / 2`
+  - 두 카드 사이 삽입: `(prev + next) / 2`를 **올림**한 정수 (`position`은 정수이므로. 두 값 사이에 정수가 없으면 `next`와 같은 값이 되어 아래 충돌 규칙으로 `next` 바로 앞에 놓인다)
   - 간격이 1 미만이면 해당 칼럼 전체를 1024 간격으로 재정렬
   - 맨 앞 삽입: 첫 번째 카드의 position - 1024
   - 맨 뒤 삽입: 마지막 카드의 position + 1024
+  - 서버는 요청한 `position`을 그대로 저장한다. 이동 티켓을 제외한 대상 칼럼에 같은 값을 가진 카드가 있으면 해당 칼럼 전체를 1024 간격으로 재정렬하며, 이때 이동 티켓이 같은 값을 가진 카드보다 앞에 위치한다 (다른 칼럼은 영향 없음)
 - **비즈니스 로직**:
   - `TODO` 또는 `IN_PROGRESS`로 이동 시, 기존 `startedAt`이 `null`이면: `startedAt` = 현재 시각 (`TODO`를 거치지 않고 `IN_PROGRESS`로 직접 이동해도 동일하게 적용, 이미 설정된 값은 덮어쓰지 않음)
-  - `TODO`에서 `BACKLOG`로 이동 시: `startedAt` = `null`
+  - `BACKLOG`로 이동 시(`TODO`/`IN_PROGRESS`/`DONE` 어느 칼럼에서든): `startedAt` = `null`
   - `DONE`에서 다른 칼럼(`BACKLOG`, `TODO`, `IN_PROGRESS`)으로 이동 시: `completedAt` = `null`
 
 ### Response
@@ -403,14 +404,32 @@
 }
 ```
 
-**400 Bad Request**
+**400 Bad Request** — `status` 오류 (`error.field` 생략)
 ```json
 { "error": { "code": "VALIDATION_ERROR", "message": "상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요" } }
 ```
 
+**400 Bad Request** — `ticketId` / `position` 오류 (`error.field` 포함)
+```json
+{ "error": { "code": "VALIDATION_ERROR", "field": "ticketId", "message": "유효하지 않은 티켓 ID입니다" } }
+```
+```json
+{ "error": { "code": "VALIDATION_ERROR", "field": "position", "message": "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요" } }
+```
+
+**400 Bad Request** — 본문이 JSON이 아니거나 객체가 아님 (`error.field` 없음)
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "요청 본문이 올바른 JSON 형식이 아닙니다" } }
+```
+
 **404 Not Found**
 ```json
-{ "error": { "code": "TICKET_NOT_FOUND", "message": "티켓을 찾을 수 없습니다" } }
+{ "error": { "code": "TICKET_NOT_FOUND", "message": "존재하지 않거나 삭제된 티켓입니다" } }
+```
+
+**500 Internal Server Error**
+```json
+{ "error": { "code": "INTERNAL_ERROR", "message": "티켓 순서를 변경하지 못했습니다" } }
 ```
 
 ---

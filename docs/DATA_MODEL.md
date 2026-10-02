@@ -292,7 +292,7 @@ export type BoardData = Record<TicketStatus, TicketWithMeta[]>;
 |------|------|------|
 | 어느 칼럼 → `TODO` 또는 `IN_PROGRESS` (기존 `startedAt`이 `null`인 경우) | `startedAt` = 현재 시각 | FR-007 |
 | 이미 `startedAt`이 설정된 티켓이 `TODO`/`IN_PROGRESS` 간 이동 | `startedAt` 변경 없음 (최초 시작 시각 보존) | FR-007 |
-| `TODO` → `BACKLOG` | `startedAt` = `null` | FR-007 |
+| 어느 칼럼 → `BACKLOG` (`TODO`/`IN_PROGRESS`/`DONE`에서 복귀) | `startedAt` = `null` | FR-007 |
 | 그 외 이동 | `startedAt` 변경 없음 | FR-007 |
 
 - `startedAt`은 `PATCH /api/tickets/reorder` (FR-007)에서만 갱신된다. 생성(FR-001), 수정(FR-004), 완료(FR-005) API는 이 필드를 건드리지 않는다.

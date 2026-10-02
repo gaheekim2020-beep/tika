@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TICKET_PRIORITY } from "@/shared/types";
+import { TICKET_PRIORITY, TICKET_STATUS } from "@/shared/types";
 
 function isTodayOrAfter(dateStr: string): boolean {
   const today = new Date();
@@ -67,3 +67,28 @@ export const updateTicketSchema = z.object({
       message: "종료예정일은 오늘 이후 날짜를 선택해주세요",
     }),
 });
+
+const REORDER_TICKET_ID_MESSAGE = "유효하지 않은 티켓 ID입니다";
+const REORDER_POSITION_MESSAGE =
+  "위치는 -2147483648 이상 2147483647 이하의 정수로 입력해주세요";
+
+// PATCH /api/tickets/reorder — 정의되지 않은 키는 제거된다.
+// DONE 이동은 PATCH /api/tickets/:id/complete를 사용하므로 status에서 제외한다.
+// position은 DB INTEGER 컬럼(32비트)에 그대로 저장되므로 범위를 검증한다.
+export const reorderTicketSchema = z.object({
+  ticketId: z
+    .number({ message: REORDER_TICKET_ID_MESSAGE })
+    .int(REORDER_TICKET_ID_MESSAGE)
+    .positive(REORDER_TICKET_ID_MESSAGE),
+  status: z.enum(
+    [TICKET_STATUS.BACKLOG, TICKET_STATUS.TODO, TICKET_STATUS.IN_PROGRESS],
+    { message: "상태는 BACKLOG, TODO, IN_PROGRESS 중 선택해주세요" }
+  ),
+  position: z
+    .number({ message: REORDER_POSITION_MESSAGE })
+    .int(REORDER_POSITION_MESSAGE)
+    .min(-2147483648, REORDER_POSITION_MESSAGE)
+    .max(2147483647, REORDER_POSITION_MESSAGE),
+});
+
+// z.infer 결과는 src/shared/types의 ReorderTicketInput과 형태가 일치해야 한다 (constitution 원칙 I).
