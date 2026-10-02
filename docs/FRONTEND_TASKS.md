@@ -23,9 +23,9 @@
 | Phase | 내용 | 대상 | 선행 |
 |-------|------|------|------|
 | **P0** | 사전 결정 · 테스트 인프라 | 스펙 갭 해소, TC 보강, fixture | - |
-| **P1** | 데이터 계층 | `ticketApi`, `boardUtils`, `useTickets`, `useTicket` | P0 |
+| **P1** | 데이터 계층 | `ticketApi`, `boardUtils`, `useTickets`, `useTicket` | P0 (**P4 시작 전까지** 완료) |
 | **P2** | UI primitive · 말단 컴포넌트 | `Button`, `Badge`, `PriorityBadge`, `OverdueIndicator`, `Modal`, `ConfirmDialog`, `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast` | P0 (P1과 병렬 가능) |
-| **P3** | 카드 · 칼럼 | `ColumnHeader`, `TicketCard`, `Column` | P1 일부, P2 |
+| **P3** | 카드 · 칼럼 | `ColumnHeader`, `TicketCard`, `Column` | P2 |
 | **P4** | 보드 (DnD) | `Board` | P1, P3 |
 | **P5** | 폼 · 모달 | `TicketForm`, `TicketDetailView`, `DeleteButton`, `TicketFormModal`, `TicketModal` | P1, P2 |
 | **P6** | 헤더 · 컨테이너 · 페이지 | `BoardHeader`, `BoardContainer`, `app/page.tsx` | P1~P5 |
@@ -210,6 +210,7 @@ graph LR
 ### 2.3 병렬로 진행할 수 있는 묶음
 
 - P1 안에서 `ticketApi`와 `boardUtils`는 서로 독립이다.
+- **진행 순서 결정(2026-10-02)**: 화면 확인 루프를 먼저 돌리기 위해 **P2부터** 진행한다. P3(`TicketCard`, `Column`)는 P1에 의존하지 않고, P1은 `Board`(P4)가 `boardUtils`를 쓰기 전까지만 끝내면 된다.
 - P2는 P1과 독립이므로 병렬 가능하고, P2 안에서도 `Button` / `Badge` / `Modal` / `EmptyColumnState` / `BoardSkeleton` / `ErrorToast` / `ColumnHeader` / `TicketDetailView`는 서로 독립이다.
 - `TicketForm`과 `TicketDetailView`는 서로 독립이다.
 - 한 명이 순서대로 진행한다면 위 표의 번호 순서가 곧 권장 순서다.
@@ -331,76 +332,86 @@ graph LR
 
 선행 없음 · 클래스 `.btn`, `.btn--primary/secondary/danger/ghost`, `.btn--sm/lg`, `.btn-spinner`
 
-- [ ] Red: TC-COMP-009-04 — variant 4종이 서로 다른 variant 클래스를 가진다, 기본값은 `primary`, `size` 기본 `md`
-- [ ] Red: TC-COMP-009-05 — `isLoading=true`이면 스피너가 보이고 `disabled`이며 클릭해도 `onClick`이 호출되지 않는다 (`aria-busy`)
-- [ ] Red: TC-COMP-009-07 — `onClick`이 없어도 클릭 시 오류가 없다
-- [ ] Red: 기본 `type="button"`(폼 안에서 의도치 않은 제출 방지), `type="submit"` 전달 가능, `children` 렌더링
-- [ ] 구현 메모: 나머지 button 속성(`aria-label`, `disabled`)은 그대로 전달
+- [X] Red: TC-COMP-009-04 — variant 4종이 서로 다른 variant 클래스를 가진다, 기본값은 `primary`, `size` 기본 `md`
+- [X] Red: TC-COMP-009-05 — `isLoading=true`이면 스피너가 보이고 `disabled`이며 클릭해도 `onClick`이 호출되지 않는다 (`aria-busy`)
+- [X] Red: TC-COMP-009-07 — `onClick`이 없어도 클릭 시 오류가 없다
+- [X] Red: 기본 `type="button"`(폼 안에서 의도치 않은 제출 방지), `type="submit"` 전달 가능, `children` 렌더링
+- [X] 구현 메모: 나머지 button 속성(`aria-label`, `disabled`)은 그대로 전달
 
 #### P2-2. `Badge` (§8.6)
 
-- [ ] Red: TC-COMP-009-03 — `variant` 5종(`low`/`medium`/`high`/`overdue`/`neutral`)이 각각 다른 variant 클래스를 가진다 (색상 자체는 P7 수동 확인)
-- [ ] Red: `children` 텍스트가 보인다
-- [ ] 명세 대조: §8.6 매핑 표에 `neutral` 행이 없으므로 표에 추가
+- [X] Red: TC-COMP-009-03 — `variant` 5종(`low`/`medium`/`high`/`overdue`/`neutral`)이 각각 다른 variant 클래스를 가진다 (색상 자체는 P7 수동 확인)
+- [X] Red: `children` 텍스트가 보인다
+- [X] 명세 대조: §8.6 매핑 표에 `neutral` 행이 없으므로 표에 추가
 
 #### P2-3. `PriorityBadge` (§5.2, TC-COMP-013-01~02)
 
 선행 `Badge`
 
-- [ ] Red: `priority`별로 텍스트(LOW/MEDIUM/HIGH)가 보이고 해당 variant가 적용된다 (TC-COMP-001-06 일부, §11 "색상에만 의존하지 않음")
+- [X] Red: `priority`별로 텍스트(LOW/MEDIUM/HIGH)가 보이고 해당 variant가 적용된다 (TC-COMP-001-06 일부, §11 "색상에만 의존하지 않음")
 
 #### P2-4. `OverdueIndicator` (§5.3, TC-COMP-013-03~04)
 
 선행 `Badge`
 
-- [ ] Red: "지연" 텍스트와 경고 아이콘이 보이고 `aria-label="지연됨"`이 있다 (TC-COMP-001-04 일부)
-- [ ] Red: 아이콘은 장식(`aria-hidden`)이며 텍스트가 함께 있다
+- [X] Red: "지연" 텍스트와 경고 아이콘이 보이고 `aria-label="지연됨"`이 있다 (TC-COMP-001-04 일부)
+- [X] Red: 아이콘은 장식(`aria-hidden`)이며 텍스트가 함께 있다
 
 #### P2-5. `Modal` (§8.5)
 
-- [ ] Red: TC-COMP-009-06 — `isOpen=false`이면 모달·오버레이가 DOM에 없다
-- [ ] Red: `isOpen=true`이면 `role="dialog"`, `aria-modal="true"`로 `children`이 보인다
-- [ ] Red: TC-COMP-009-02 — 오버레이 바깥 클릭 시 `onClose` 호출, **모달 내부 클릭은 호출하지 않는다**
-- [ ] Red: Esc 입력 시 `onClose` 호출
-- [ ] Red: TC-COMP-009-01 — 열려 있는 동안 `body` 스크롤이 잠기고, 닫히거나 언마운트되면 복구된다
-- [ ] Red: 열리면 내부 첫 포커스 가능 요소로 포커스가 이동한다 (TC-COMP-006-02의 기반)
-- [ ] 구현 메모: 오버레이는 `createPortal(document.body)` 사용 시 SSR 안전하게(클라이언트 컨테이너 안에서만 렌더), 짧은 페이드/스케일은 `.modal`의 CSS 애니메이션 사용(라이브러리 도입 없음), 중첩 모달(상세 위 확인 다이얼로그)에서 Esc가 **가장 위 모달만** 닫도록 확인
+- [X] Red: TC-COMP-009-06 — `isOpen=false`이면 모달·오버레이가 DOM에 없다
+- [X] Red: `isOpen=true`이면 `role="dialog"`, `aria-modal="true"`로 `children`이 보인다
+- [X] Red: TC-COMP-009-02 — 오버레이 바깥 클릭 시 `onClose` 호출, **모달 내부 클릭은 호출하지 않는다**
+- [X] Red: Esc 입력 시 `onClose` 호출
+- [X] Red: TC-COMP-009-01 — 열려 있는 동안 `body` 스크롤이 잠기고, 닫히거나 언마운트되면 복구된다
+- [X] Red: 열리면 내부 첫 포커스 가능 요소로 포커스가 이동한다 (TC-COMP-006-02의 기반)
+- [X] 구현 메모: 포털은 쓰지 않는다(오버레이는 `position: fixed`이며 프리뷰 갤러리의 `contained` 패널 안에 가둘 수 있다), 짧은 페이드/스케일은 `.modal`의 CSS 애니메이션 사용(라이브러리 도입 없음), 중첩 모달(상세 위 확인 다이얼로그)에서 Esc가 **가장 위 모달만** 닫도록 확인
 
 #### P2-6. `ConfirmDialog` (§8.7, §6.3, TC-COMP-010-01~09)
 
 선행 `Button`, `Modal`
 
-- [ ] Red: `isOpen`이면 `role="alertdialog"`와 `title` 문구가 보인다
-- [ ] Red: TC-COMP-008-03 — 열린 직후 **취소 버튼에 포커스**가 있고 확인 버튼에는 없다
-- [ ] Red: 확인 클릭 시 `onConfirm`, 취소 클릭 시 `onCancel` 호출 (TC-COMP-008-05 기반)
-- [ ] Red: `danger=true`이면 확인 버튼이 danger variant, 기본은 primary
-- [ ] Red: `onConfirm`이 진행 중이면 확인 버튼이 로딩·비활성이다 (중복 삭제 방지)
+- [X] Red: `isOpen`이면 `role="alertdialog"`와 `title` 문구가 보인다
+- [X] Red: TC-COMP-008-03 — 열린 직후 **취소 버튼에 포커스**가 있고 확인 버튼에는 없다
+- [X] Red: 확인 클릭 시 `onConfirm`, 취소 클릭 시 `onCancel` 호출 (TC-COMP-008-05 기반)
+- [X] Red: `danger=true`이면 확인 버튼이 danger variant, 기본은 primary
+- [X] Red: `onConfirm`이 진행 중이면 확인 버튼이 로딩·비활성이다 (중복 삭제 방지)
 
 #### P2-7. `EmptyColumnState` (§8.4, TC-COMP-011-01)
 
-- [ ] Red: TC-COMP-002-06 일부 — `label` 문구(예: "아직 카드가 없어요")가 보인다
+- [X] Red: TC-COMP-002-06 일부 — `label` 문구(예: "아직 카드가 없어요")가 보인다
 
 #### P2-8. `BoardSkeleton` (§8.1, TC-COMP-011-02)
 
-- [ ] Red: TC-COMP-004-02 — 4개 칼럼 형태의 스켈레톤이 보이고 `aria-busy`/`role="status"`로 로딩임을 알린다
-- [ ] 구현 메모: 레이아웃은 `.board`를 재사용해 데스크톱/태블릿/모바일 배치를 맞춘다
+- [X] Red: TC-COMP-004-02 — 4개 칼럼 형태의 스켈레톤이 보이고 `aria-busy`/`role="status"`로 로딩임을 알린다
+- [X] 구현 메모: 레이아웃은 `.board`를 재사용해 데스크톱/태블릿/모바일 배치를 맞춘다
 
 #### P2-9. `ErrorBanner` (§8.2, TC-COMP-011-03~04)
 
 선행 `Button`
 
-- [ ] Red: TC-COMP-004-03 일부 — `message`와 "재시도" 버튼이 보인다
-- [ ] Red: 재시도 클릭 시 `onRetry` 호출
-- [ ] Red: `role="alert"`
+- [X] Red: TC-COMP-004-03 일부 — `message`와 "재시도" 버튼이 보인다
+- [X] Red: 재시도 클릭 시 `onRetry` 호출
+- [X] Red: `role="alert"`
 
 #### P2-10. `ErrorToast` (§8.3, 결정 D9, TC-COMP-012-01~04)
 
-- [ ] Red: `message`가 `role="alert"`로 보인다
-- [ ] Red: 5초 뒤 사라지고 `onDismiss`가 호출된다 — `jest.useFakeTimers()`로 검증 (D9)
-- [ ] Red: `message`가 바뀌면 타이머가 다시 시작되고 이전 메시지가 남지 않는다
-- [ ] 구현 메모: 언마운트 시 타이머 정리
+- [X] Red: `message`가 `role="alert"`로 보인다
+- [X] Red: 5초 뒤 사라지고 `onDismiss`가 호출된다 — `jest.useFakeTimers()`로 검증 (D9)
+- [X] Red: `message`가 바뀌면 타이머가 다시 시작되고 이전 메시지가 남지 않는다
+- [X] 구현 메모: 언마운트 시 타이머 정리
 
 **Phase 2 완료 기준**: 10개 컴포넌트 테스트 통과, 각 Props가 COMPONENT_SPEC과 일치, 접근성 속성(§11) 확인.
+
+**Phase 2 게이트 (§1.5)**
+
+- [X] `npx tsc --noEmit` 통과
+- [X] `npm run test` 통과 — 컴포넌트 테스트 68개 + 프리뷰 섹션 렌더링 테스트, 전체 308개
+- [X] 프리뷰에 10개 컴포넌트 등록 (`app/preview/_sections/phase2.tsx`), 개발 서버에서 `/preview` 200 응답과 섹션 렌더링 확인(HTML 기준)
+- [ ] **프리뷰 화면 확인(사용자)** — 각 섹션 상단의 "확인" 문구와 아래 수동 확인 항목
+- [X] `npm run build` 통과
+
+수동 확인으로 남긴 TC: 색상 구분(TC-COMP-009-03/04, 013-02), 모달 포커스·Esc·바깥 클릭·중첩 Esc(009-08~11), 확인 대화상자 기본 포커스(008-03, 010-02), 토스트 5초 자동 닫힘(012-02).
 
 ---
 
