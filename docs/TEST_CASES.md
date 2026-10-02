@@ -1,7 +1,7 @@
 # Tika - 테스트 케이스 명세 (TEST_CASES.md)
 
 > REQUIREMENTS.md(FR/NFR/US), API_SPEC.md, DATA_MODEL.md, COMPONENT_SPEC.md를 기준으로 작성한다.
-> API 테스트 TC ID는 REQUIREMENTS.md §4 추적 매트릭스의 `TC-{FR 번호}-{일련번호}` 규칙에 `API` 접두사를 붙여 `TC-API-{FR 번호}-{일련번호}`로 표기한다 (컴포넌트/통합 테스트와 구분하기 위함). 컴포넌트 테스트는 `TC-COMP-`, 통합 테스트는 `TC-INT-` 접두사를 사용한다.
+> API 테스트 TC ID는 REQUIREMENTS.md §4 추적 매트릭스의 `TC-{FR 번호}-{일련번호}` 규칙에 `API` 접두사를 붙여 `TC-API-{FR 번호}-{일련번호}`로 표기한다 (컴포넌트/통합 테스트와 구분하기 위함). 컴포넌트 테스트는 `TC-COMP-`, 통합 테스트는 `TC-INT-` 접두사를 사용한다. 화면 아래 계층의 클라이언트 로직 테스트는 API 호출 함수 `TC-CLIENT-API-`, 순수 로직 `TC-CLIENT-UTIL-`, 훅 `TC-HOOK-` 접두사를 사용한다.
 > TDD 순서(CLAUDE.md): 이 문서의 테스트 케이스 확인 → 테스트 코드 작성(Red) → 최소 구현(Green) → 리팩토링.
 
 ---
@@ -26,6 +26,7 @@
 - NFR-003(접근성)은 각 컴포넌트 섹션에 개별적으로 흩어져 있다 (키보드 조작 TC-COMP-003-07/11, ESC 처리 TC-COMP-007-11 등). US-005(드래그앤드롭)에서만 대표로 표기했다.
 - NFR-004(데이터 무결성)는 두 축으로 나뉜다. "낙관적 업데이트: UI 즉시 반영 → 실패 시 롤백"은 TC-COMP-003-12(드롭 실패 시 조용히 롤백)와 TC-INT-003-06(네트워크 오류 시 롤백 + DB 상태 불변 확인)이 담당하고, "position 충돌 시 재정렬"은 TC-API-007-04, "트랜잭션 원자성"은 TC-API-007-14가 별도로 담당한다.
 - TC-COMP-009(Modal/Badge/Button 공통 primitive)는 특정 US 하나에 속하지 않고 여러 US에 걸쳐 재사용되는 기반 컴포넌트라 위 표에는 넣지 않았다. Modal은 US-001/002/007(생성·수정 모달), Badge는 US-002/004(우선순위·지연 표시), Button은 거의 모든 US의 버튼형 UI에 간접적으로 걸쳐 있다.
+- TC-COMP-010~013(ConfirmDialog·상태 표시·ErrorToast·배지 단독)과 TC-CLIENT-API / TC-CLIENT-UTIL / TC-HOOK(§3.14~3.17)은 화면 아래 계층이거나 여러 US에 걸쳐 재사용되는 기반이라 위 표에 넣지 않았다 (TC-COMP-009와 같은 이유). NFR-004의 낙관적 업데이트·롤백은 컴포넌트 TC 외에 TC-HOOK-001-07~09, 14~16이 직접 검증한다.
 
 ---
 
@@ -34,7 +35,8 @@
 | 구분 | 대상 | 위치(예정) | 관점 |
 |------|------|------|------|
 | 1. API 테스트 | `app/api/` Route Handler + `src/server/services/` | `__tests__/services/`, `__tests__/api/tickets*.test.ts` (`/** @jest-environment node */`) | 백엔드 — 요청/응답, 상태 코드, DB 부수효과 |
-| 2. 컴포넌트 테스트 | `src/client/components/`, `src/client/hooks/` | `__tests__/components/`, `__tests__/hooks/` (jsdom) | 사용자 관점 — 화면에 보이는 것과 사용자의 조작 |
+| 2. 컴포넌트 테스트 | `src/client/components/` | `__tests__/components/` (jsdom) | 사용자 관점 — 화면에 보이는 것과 사용자의 조작 |
+| 2-1. 클라이언트 로직 테스트 | `src/client/api/ticketApi.ts`, `src/client/lib/`, `src/client/hooks/` | `__tests__/api/ticketApi.test.ts`, `__tests__/lib/`, `__tests__/hooks/` (jsdom) | 개발자 관점 — 요청 형식, 반환값, 상태 변화 (화면 아래 계층) |
 | 3. 통합 테스트 | 사용자 스토리(US) 단위 End-to-End 흐름 | `__tests__/integration/` | 사용자 시나리오 전체 — 여러 컴포넌트/API 호출이 이어지는 흐름 |
 
 ---
@@ -484,6 +486,209 @@
 
 ---
 
+### 3.10 ConfirmDialog — 공통 primitive 단독 (§8.7)
+
+> TC-COMP-008은 `TicketModal` 안에서의 삭제 흐름을, 이 표는 `ConfirmDialog` 컴포넌트 자체의 동작을 검증한다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-010-01 | 열린 상태 렌더링 | `isOpen=true`, `title="정말 삭제하시겠습니까?"` | 확인 문구와 "확인"·"취소" 버튼이 있는 알림 대화상자(`alertdialog`)가 보인다 |
+| TC-COMP-010-02 | 기본 포커스 | 대화상자가 열린 직후 | "취소" 버튼에 포커스가 있고 "확인" 버튼에는 없다 |
+| TC-COMP-010-03 | 확인 클릭 | "확인" 클릭 | `onConfirm`이 한 번 호출되고 `onCancel`은 호출되지 않는다 |
+| TC-COMP-010-04 | 취소 클릭 | "취소" 클릭 | `onCancel`이 한 번 호출되고 `onConfirm`은 호출되지 않는다 |
+| TC-COMP-010-05 | Esc로 취소 | 열린 상태에서 Esc 입력 | `onCancel`이 호출되고 `onConfirm`은 호출되지 않는다 |
+| TC-COMP-010-06 | 위험 동작 스타일 | `danger=true` / `danger` 생략 | `true`면 "확인" 버튼이 위험(danger) 스타일, 생략하면 기본(primary) 스타일로 보인다 (실제 색상은 수동 확인) |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-010-07 | 닫힌 상태 | `isOpen=false` | 대화상자가 화면에 전혀 보이지 않는다 |
+| TC-COMP-010-08 | 확인 처리 중 중복 클릭 | `onConfirm`이 아직 끝나지 않은 Promise를 반환하는 동안 "확인"을 연속 두 번 클릭 | "확인" 버튼이 스피너와 함께 비활성화되고 `onConfirm`은 한 번만 호출된다 |
+| TC-COMP-010-09 | 확인 처리 실패 | `onConfirm`이 reject | "확인" 버튼의 로딩이 풀려 다시 누를 수 있고, 처리되지 않은 예외로 번지지 않는다 (오류 표시는 호출부 책임) |
+
+---
+
+### 3.11 상태·오류 표시 — EmptyColumnState / BoardSkeleton / ErrorBanner (§8.1, §8.2, §8.4)
+
+> 표시 전용 컴포넌트라 예외 케이스는 따로 두지 않는다. 이 컴포넌트들이 `Column`, `BoardContainer` 안에서 쓰이는 흐름은 TC-COMP-002-06, TC-COMP-004-02~04가 검증한다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-011-01 | 빈 칼럼 안내 | `EmptyColumnState`, `label="아직 카드가 없어요"` | 안내 문구가 그대로 보인다 |
+| TC-COMP-011-02 | 보드 스켈레톤 | `BoardSkeleton` 렌더링 | 4개 칼럼 모양의 자리 표시가 보이고, 보조기기에는 "로딩 중" 상태로 전달된다 (`role="status"`, `aria-busy`). 카드 제목 같은 실제 데이터 텍스트는 없다 |
+| TC-COMP-011-03 | 에러 배너 표시 | `ErrorBanner`, `message="티켓 목록을 불러오지 못했습니다"` | 메시지와 "재시도" 버튼이 보이고, 경고(`role="alert"`)로 전달된다 |
+| TC-COMP-011-04 | 재시도 클릭 | "재시도" 클릭 | `onRetry`가 한 번 호출된다 |
+
+---
+
+### 3.12 ErrorToast (§8.3)
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-012-01 | 토스트 표시 | `message="티켓을 저장하지 못했습니다"` | 메시지가 화면에 보이고 경고(`role="alert"`)로 전달된다 |
+| TC-COMP-012-02 | 5초 뒤 자동으로 사라짐 | 표시 후 4.9초 시점과 5초 경과 시점 | 4.9초에는 보이고, 5초가 지나면 사라지며 `onDismiss`가 한 번 호출된다 |
+| TC-COMP-012-03 | 표시 중 메시지 교체 | 표시 중 `message`가 다른 값으로 바뀜 | 새 메시지가 보이고, 타이머가 다시 시작되어 새 메시지 기준 5초 뒤에 사라진다 (처음 메시지 기준 5초에는 사라지지 않음) |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-012-04 | 사라지기 전에 화면에서 제거됨 | 5초가 지나기 전에 토스트가 언마운트됨 | 이후에도 `onDismiss`가 호출되지 않고 오류·경고가 발생하지 않는다 |
+
+---
+
+### 3.13 PriorityBadge / OverdueIndicator (§5.2, §5.3)
+
+> 카드 안에서의 표시는 TC-COMP-001-01, 04~06이, 이 표는 두 컴포넌트 단독 동작을 검증한다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-COMP-013-01 | 우선순위 텍스트 | `PriorityBadge`, `priority="LOW"` / `"MEDIUM"` / `"HIGH"` 각각 | "LOW" / "MEDIUM" / "HIGH" 텍스트가 각각 보인다 (색상에만 의존하지 않음) |
+| TC-COMP-013-02 | 우선순위별 색상 구분 | 위 세 값 | 세 배지의 색상 스타일(variant)이 서로 다르다 (실제 색상은 수동 확인) |
+| TC-COMP-013-03 | 지연 표시 | `OverdueIndicator` 렌더링 | "지연" 텍스트와 경고 아이콘이 함께 보이고 `aria-label="지연됨"`이 있다 |
+| TC-COMP-013-04 | 아이콘은 장식 | `OverdueIndicator` 렌더링 | 아이콘은 보조기기에서 숨겨지고(`aria-hidden`) "지연" 텍스트만 읽힌다 |
+
+---
+
+### 3.14 ticketApi — 클라이언트 API 호출 함수 (TRD §3, API_SPEC)
+
+> 파일 `src/client/api/ticketApi.ts`, 테스트 `__tests__/api/ticketApi.test.ts`(jsdom, `fetch`를 mock). 컴포넌트와 훅은 서버와 이 함수로만 통신한다 (TRD §4). 화면 아래 계층이라 기대 결과를 **요청 형식과 반환값**으로 적는다.
+> 오류는 `ApiError`(`status`, `code`, `message`, `field?`)로 통일해 reject한다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-CLIENT-API-001-01 | 보드 조회 | `fetchBoard()`, 서버가 200과 4개 칼럼 응답 | `GET /api/tickets`로 요청하고 `{ BACKLOG, TODO, IN_PROGRESS, DONE }` 형태를 반환한다 |
+| TC-CLIENT-API-001-02 | 단건 조회 | `fetchTicket(7)` | `GET /api/tickets/7`로 요청하고 티켓 한 건을 반환한다 |
+| TC-CLIENT-API-001-03 | 생성 | `createTicket({ title: "새 업무" })`, 서버가 201 | `POST /api/tickets`, `Content-Type: application/json`, 본문 `{"title":"새 업무"}`로 요청하고 생성된 티켓을 반환한다 |
+| TC-CLIENT-API-001-04 | 수정 | `updateTicket(7, { title: "수정" })` | `PATCH /api/tickets/7`로 전달한 필드만 담아 요청하고 수정된 티켓을 반환한다 |
+| TC-CLIENT-API-001-05 | 삭제 | `deleteTicket(7)`, 서버가 204(본문 없음) | `DELETE /api/tickets/7`로 요청하고, 본문이 없어도 오류 없이 완료된다 |
+| TC-CLIENT-API-001-06 | 완료 처리 | `completeTicket(7)` | `PATCH /api/tickets/7/complete`로 본문 없이 요청하고 갱신된 티켓을 반환한다 |
+| TC-CLIENT-API-001-07 | 순서·상태 변경 | `reorderTicket({ ticketId: 7, status: "TODO", position: 1536 })` | `PATCH /api/tickets/reorder`, 본문 `{"ticketId":7,"status":"TODO","position":1536}`로 요청하고 4개 칼럼 보드를 반환한다 |
+| TC-CLIENT-API-001-08 | 날짜 필드 변환 | 응답에 `startedAt`/`completedAt`/`createdAt`/`updatedAt`이 ISO 문자열(또는 `null`)로 포함 | 이 네 필드는 `Date` 객체(`null`은 `null`)로, `plannedStartDate`/`dueDate`는 `"YYYY-MM-DD"` 문자열 그대로 반환한다 (보드·단건·생성·수정·완료·reorder 응답 모두 동일, DATA_MODEL.md §4) |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-CLIENT-API-001-09 | 필드가 있는 400 | 서버가 400과 `{ error: { code: "VALIDATION_ERROR", field: "title", message: "제목을 입력해주세요" } }` 응답 | `ApiError`로 reject되고 `status=400`, `code`, `field`, `message`가 그대로 담긴다 |
+| TC-CLIENT-API-001-10 | 필드가 없는 400 | `field`가 없는 400 응답 | `ApiError`의 `field`가 `undefined`다 |
+| TC-CLIENT-API-001-11 | 404 | `TICKET_NOT_FOUND` 응답 | `ApiError`(`status=404`, `code="TICKET_NOT_FOUND"`)로 reject된다 |
+| TC-CLIENT-API-001-12 | 500 | `INTERNAL_ERROR` 응답 | `ApiError`(`status=500`, `code="INTERNAL_ERROR"`)로 reject되고 서버 메시지가 보존된다 |
+| TC-CLIENT-API-001-13 | JSON이 아닌 오류 응답 | 5xx 응답 본문이 HTML이거나 비어 있음 | `ApiError`로 reject되고 `status`는 보존, `code="UNKNOWN_ERROR"`와 기본 메시지를 가진다 |
+| TC-CLIENT-API-001-14 | 네트워크 오류 | `fetch` 자체가 reject (연결 실패) | `ApiError(code="NETWORK_ERROR")`로 통일해 reject한다 (호출부가 한 종류의 오류만 처리하면 되도록) |
+
+---
+
+### 3.15 boardUtils — 순수 로직 (API_SPEC §7, COMPONENT_SPEC §3.4·§3.6·§7)
+
+> 파일 `src/client/lib/boardUtils.ts`, 테스트 `__tests__/lib/boardUtils.test.ts`. React와 무관한 순수 함수라 입력과 반환값만 검증한다. 보드를 바꾸는 함수는 입력 `BoardData`를 변경하지 않고 새 객체를 반환한다.
+> 드롭 계산의 예시 보드: BACKLOG `[X=1024]`, TODO `[A=1024, B=2048, C=3072]`, IN_PROGRESS `[]`, DONE `[D=1024]`. 카드 위에 드롭하면 **그 카드가 있던 자리**에 놓인다 (위로 이동하면 그 카드 앞, 아래로 이동하면 그 카드 뒤).
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-CLIENT-UTIL-001-01 | 두 카드 사이 위치 | `calculatePosition(1024, 2048)` | `1536` |
+| TC-CLIENT-UTIL-001-02 | 정수 간격이 없는 경우 | `calculatePosition(1024, 1025)` | `1025` (올림 결과가 next와 같은 값이 되며, 서버가 충돌 규칙으로 next 바로 앞에 놓는다) |
+| TC-CLIENT-UTIL-001-03 | 맨 앞 | `calculatePosition(null, 1024)` | `0` (첫 카드 - 1024) |
+| TC-CLIENT-UTIL-001-04 | 맨 뒤 | `calculatePosition(2048, null)` | `3072` (마지막 카드 + 1024) |
+| TC-CLIENT-UTIL-001-05 | 빈 칼럼 | `calculatePosition(null, null)` | `1024` |
+| TC-CLIENT-UTIL-001-06 | 다른 칼럼의 카드 위에 드롭 | BACKLOG의 X를 TODO의 B 위에 드롭 | `{ kind: "reorder", status: "TODO", position: 1536 }` (A와 B 사이) |
+| TC-CLIENT-UTIL-001-07 | 칼럼의 빈 영역에 드롭 | X를 TODO 칼럼 영역(카드가 없는 곳)에 드롭 | `{ kind: "reorder", status: "TODO", position: 4096 }` (맨 뒤) |
+| TC-CLIENT-UTIL-001-08 | 빈 칼럼에 드롭 | X를 카드 없는 IN_PROGRESS 칼럼에 드롭 | `{ kind: "reorder", status: "IN_PROGRESS", position: 1024 }` |
+| TC-CLIENT-UTIL-001-09 | 같은 칼럼에서 위로 이동 | TODO의 C를 B 위에 드롭 (결과 순서 A, C, B) | `position: 1536` (이동 카드 자신은 이웃 계산에서 제외) |
+| TC-CLIENT-UTIL-001-10 | 같은 칼럼에서 아래로 이동 | TODO의 A를 B 위에 드롭 (결과 순서 B, A, C) | `position: 2560` (B=2048과 C=3072 사이) |
+| TC-CLIENT-UTIL-001-11 | 같은 칼럼 맨 앞으로 이동 | TODO의 C를 A 위에 드롭 | `position: 0` |
+| TC-CLIENT-UTIL-001-12 | 다른 칼럼에서 DONE으로 | TODO의 B를 DONE 칼럼 또는 D 카드 위에 드롭 | `{ kind: "complete" }` |
+| TC-CLIENT-UTIL-001-13 | DONE에서 다른 칼럼으로 | DONE의 D를 TODO 칼럼 영역에 드롭 | `{ kind: "reorder", status: "TODO", position: 4096 }` (DONE 이탈은 허용) |
+| TC-CLIENT-UTIL-001-14 | 칼럼 간 이동 반영 (`moveTicket`) | X를 TODO, `position=1536`으로 이동 | 원래 칼럼에서 사라지고 TODO가 `[A, X, B, C]` 순서가 되며 X의 `status`/`position`이 반영된다 |
+| TC-CLIENT-UTIL-001-15 | 원본 불변 | 위 이동 후 | 입력으로 넘긴 보드 객체는 바뀌지 않고 새 객체가 반환된다 |
+| TC-CLIENT-UTIL-001-16 | 완료 낙관적 반영 (`completeInBoard`) | TODO의 B를 완료 처리 | DONE 맨 위(기존 최솟값 - 1024, 비어 있으면 1024)에 놓이고 `status="DONE"`, `completedAt`이 현재 시각으로 채워진다 |
+| TC-CLIENT-UTIL-001-17 | 생성 반영 (`insertTicket`) | 새 티켓 추가 | BACKLOG 맨 위에 추가된다 |
+| TC-CLIENT-UTIL-001-18 | 수정 반영 (`replaceTicket`) | 같은 `id`의 새 티켓 데이터 | 해당 카드만 교체되고 칼럼 내 순서는 유지된다 |
+| TC-CLIENT-UTIL-001-19 | 삭제 반영 (`removeTicket`) | 존재하는 `id` | 해당 카드가 보드에서 제거된다 |
+| TC-CLIENT-UTIL-001-20 | 변경된 필드만 추출 (`getChangedFields`) | 제목만 바꾼 폼 값 / 여러 필드를 바꾼 폼 값 | 바뀐 필드만 담긴 객체(`{ title }` / 바뀐 필드 전부)를 반환하고, 같은 값의 필드는 포함하지 않는다 |
+| TC-CLIENT-UTIL-001-21 | 변경 없음 | 원본과 같은 폼 값 | 빈 객체 `{}`를 반환한다 |
+| TC-CLIENT-UTIL-001-22 | 값을 비운 필드 | 설명 "설명" → 빈 문자열, 종료예정일 "2026-10-10" → 빈 값 | `{ description: null, dueDate: null }` (API_SPEC §4: `null`이면 값을 비움) |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-CLIENT-UTIL-001-23 | 제자리 드롭 | TODO의 B를 B 자신 위에 드롭 | `resolveDropTarget`이 `null`을 반환한다 |
+| TC-CLIENT-UTIL-001-24 | DONE 칼럼 안의 이동 | DONE의 D를 DONE 칼럼 또는 D 위에 드롭 | `null`을 반환한다 (DONE 내부 순서는 바꿀 수 없음) |
+| TC-CLIENT-UTIL-001-25 | 드롭 대상 없음 | 드롭 대상(`over`)이 `null` | `null`을 반환한다 |
+| TC-CLIENT-UTIL-001-26 | 존재하지 않는 id | `moveTicket`/`completeInBoard`/`replaceTicket`/`removeTicket`에 없는 `id` | 보드 내용이 그대로 반환된다 (오류 없음) |
+
+---
+
+### 3.16 useTickets — 보드 상태 훅 (COMPONENT_SPEC §3.5, §7)
+
+> 파일 `src/client/hooks/useTickets.ts`, 테스트 `__tests__/hooks/useTickets.test.tsx`(`renderHook`, `ticketApi` mock). 화면 아래 계층이라 기대 결과를 **훅이 돌려주는 상태와 호출 결과**로 적는다. 화면에서 보이는 롤백은 TC-COMP-003-12가 검증한다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-HOOK-001-01 | 최초 조회 | `initialData` 없이 마운트 | `isLoading=true`로 시작하고, 보드 조회가 끝나면 `board`가 채워지고 `isLoading=false`가 된다 |
+| TC-HOOK-001-02 | 초기 데이터 제공 | `initialData`를 전달 | 최초 조회를 하지 않고 그 값이 `board`가 되며 `isLoading=false`다 |
+| TC-HOOK-001-03 | 다시 불러오기 | 조회 실패 상태에서 `refetch()`가 성공 | 보드를 다시 조회해 `board`가 채워지고 이전 `error`가 지워진다 |
+| TC-HOOK-001-04 | 생성 성공 | `create({ title })`, 서버가 새 티켓 반환 | 새 티켓이 BACKLOG 맨 위에 추가된다 |
+| TC-HOOK-001-05 | 수정 성공 | `update(id, 변경분)` | 보드의 해당 카드가 서버가 돌려준 값으로 교체된다 |
+| TC-HOOK-001-06 | 삭제 성공 | `remove(id)` | 보드에서 해당 카드가 사라진다 |
+| TC-HOOK-001-07 | 이동의 낙관적 반영 | `reorder(id, "TODO", 1536)` 호출 직후, API 응답 전 | 응답을 기다리지 않고 즉시 `board`가 새 칼럼·위치로 바뀐다 |
+| TC-HOOK-001-08 | 이동 결과 확정 | `reorder`의 API 응답 수신 | `board`가 서버가 돌려준 보드로 교체된다 |
+| TC-HOOK-001-09 | 완료의 낙관적 반영과 확정 | `complete(id)` 호출 | 즉시 DONE 칼럼 맨 위로 옮겨지고, 응답 후 서버 값(`completedAt` 포함)으로 확정된다 |
+| TC-HOOK-001-10 | 오류 지우기 | `error`가 채워진 상태에서 `clearError()` | `error`가 `null`이 된다 |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-HOOK-001-11 | 초기 조회 실패 | 보드 조회가 실패 | `error`에 메시지가 채워지고 `isLoading=false`이며 `board`는 비어 있다 |
+| TC-HOOK-001-12 | 생성·수정·삭제 실패 (필드가 있는 400) | `error.field="title"`인 400 응답 | `ApiError`로 reject되고 `error` 상태는 채워지지 않으며(필드 오류는 폼에서 인라인 표시) 보드는 그대로다 |
+| TC-HOOK-001-13 | 생성·수정·삭제 실패 (그 외) | 500, 404, 필드 없는 400, 네트워크 오류 | `ApiError`로 reject되고 `error`에 메시지가 채워지며 보드는 그대로다 (삭제 실패 시 카드가 남는다) |
+| TC-HOOK-001-14 | 이동 실패 | `reorder`의 API가 실패 | 낙관적으로 바꿨던 `board`가 호출 전 상태로 조용히 돌아가고, `error`는 채워지지 않으며 reject하지 않는다 |
+| TC-HOOK-001-15 | 완료 실패 | `complete`의 API가 실패 | 위와 동일하게 DONE으로 옮겼던 카드가 원래 칼럼·위치로 돌아간다 |
+| TC-HOOK-001-16 | 연속 이동 중 일부 실패 | 카드 A 이동 성공 후 카드 B 이동 실패 | B만 원래대로 돌아가고 A의 이동 결과는 유지된다 (스냅샷이 섞이지 않음) |
+| TC-HOOK-001-17 | 같은 오류가 다시 발생 | `clearError()` 후 같은 실패가 다시 발생 | `error`가 다시 채워진다 (같은 메시지의 토스트가 다시 표시될 수 있음) |
+| TC-HOOK-001-18 | 응답 도착 전 언마운트 | 요청 중에 훅이 언마운트됨 | 이후 응답이 도착해도 상태 갱신 경고나 오류가 발생하지 않는다 |
+
+---
+
+### 3.17 useTicket — 상세 조회 훅 (COMPONENT_SPEC §3.5, §6.2)
+
+> 파일 `src/client/hooks/useTicket.ts`, 테스트 `__tests__/hooks/useTicket.test.tsx`. `TicketModal`이 오픈 시 최신 단건 데이터를 조회하는 데 쓴다.
+
+**정상 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-HOOK-002-01 | 조회 | `useTicket(7)` | `isLoading=true`로 시작하고 응답 후 `ticket`이 채워지며 `isLoading=false`가 된다 |
+| TC-HOOK-002-02 | id가 없음 | `useTicket(null)` | 조회하지 않고 `ticket=null`, `isLoading=false`다 |
+| TC-HOOK-002-03 | id 변경 | 7에서 8로 변경 | 새 id로 다시 조회해 `ticket`이 8번 티켓으로 바뀐다 |
+| TC-HOOK-002-04 | 모달 닫힘 | 7에서 `null`로 복귀 | `ticket`과 `error`가 비워진다 |
+
+**예외 케이스**
+
+| 번호 | 시나리오 | 조건 | 기대 결과 |
+|------|------|------|------|
+| TC-HOOK-002-05 | 조회 실패 | 404 또는 500 응답 | `error`에 메시지가 채워지고 `ticket=null`, `isLoading=false`다 (TC-COMP-007-12의 기반) |
+| TC-HOOK-002-06 | 응답 순서가 뒤바뀜 | 7을 요청한 뒤 끝나기 전에 8로 변경, 7의 응답이 8보다 늦게 도착 | 늦게 도착한 7의 응답은 무시되고 `ticket`은 8번 티켓이다 |
+
+---
+
 ## 4. 통합 테스트 케이스
 
 > 사용자 스토리(US) 단위로, 화면 조작부터 실제 API 호출·DB 반영까지 이어지는 전체 흐름을 검증한다.
@@ -588,11 +793,12 @@
 
 **Phase 2 (보완 — 백엔드 API + 컴포넌트)**
 - TC-API-003 (상세 조회), TC-API-004 (수정), TC-API-006 (삭제), TC-API-008 (오버듀)
+- TC-CLIENT-API-001 (ticketApi), TC-CLIENT-UTIL-001 (boardUtils), TC-HOOK-001~002 (useTickets, useTicket) — 컴포넌트가 의존하는 하위 계층이므로 컴포넌트보다 먼저
 - TC-COMP-001 (TicketCard), TC-COMP-002 (Column), TC-COMP-003 (Board)
 - 이유: CRUD 완성 + 핵심 UI 렌더링
 
 **Phase 3 (폼 + 모달)**
-- TC-COMP-009 (Modal/Badge/Button 공통 primitive) → TC-COMP-006 (TicketFormModal), TC-COMP-007 (TicketModal/TicketDetailView/TicketForm), TC-COMP-008 (DeleteButton/ConfirmDialog)
+- TC-COMP-009~013 (Modal/Badge/Button, ConfirmDialog, 상태·오류 표시, ErrorToast, 배지 단독 — 공통 primitive·보조 컴포넌트) → TC-COMP-006 (TicketFormModal), TC-COMP-007 (TicketModal/TicketDetailView/TicketForm), TC-COMP-008 (DeleteButton/ConfirmDialog)
 - 이유: 사용자 입력 UI. 공통 primitive를 먼저 검증해두면 이를 감싸는 상위 컴포넌트(TicketFormModal 등) 구현이 더 안정적으로 진행된다
 
 **Phase 4 (통합)**

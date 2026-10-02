@@ -208,12 +208,12 @@ graph LR
 ### Phase 0. 사전 준비
 
 - [X] **P0-1 스펙 갭 결정과 문서 반영**: §3의 D1~D9, D11을 결정하고 COMPONENT_SPEC.md / TEST_CASES.md를 수정한다 (D10은 P7에서). **D1, D6, D7은 완료**(COMPONENT_SPEC §3.5·§5.1·§7·§11, TRD §1.5, TEST_CASES TC-COMP-001-09·13~15 반영), 나머지 D2~D5, D8, D9, D11도 결정·반영 완료했고 D10은 수동 점검으로 결정했다. 남은 일은 P0-2의 TC 보강이다.
-- [ ] **P0-2 TEST_CASES.md 보강** (현재 TC가 없는 대상):
-  - `ticketApi`: 7개 함수의 URL·메서드·본문, 성공/실패(`ApiError`), 네트워크 오류, 날짜 복원 (임시 ID `TC-CLIENT-API-*`)
-  - `boardUtils`: `calculatePosition`, `resolveDropTarget`, `moveTicket` 등 (임시 ID `TC-CLIENT-UTIL-*`)
-  - `useTickets` / `useTicket`: 로딩, 낙관적 업데이트, 롤백 (임시 ID `TC-HOOK-*`)
-  - 독립 컴포넌트: `ConfirmDialog`(§8.7), `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast`, `PriorityBadge`/`OverdueIndicator` (임시 ID `TC-COMP-010~`)
-  - 번호는 기존 표 형식(`TC-COMP-NNN-NN`)에 맞춰 확정하고, 이 문서의 임시 ID를 실제 번호로 교체한다.
+- [X] **P0-2 TEST_CASES.md 보강** (완료 — TEST_CASES.md §3.10~3.17, 총 TC 약 80개):
+  - `ticketApi`: 7개 함수의 URL·메서드·본문, 성공/실패(`ApiError`), 네트워크 오류, 날짜 복원 (`TC-CLIENT-API-001-01~14`, §3.14)
+  - `boardUtils`: `calculatePosition`, `resolveDropTarget`, `moveTicket` 등 (`TC-CLIENT-UTIL-001-01~26`, §3.15)
+  - `useTickets` / `useTicket`: 로딩, 낙관적 업데이트, 롤백 (`TC-HOOK-001-01~18`, `TC-HOOK-002-01~06`, §3.16~3.17)
+  - 독립 컴포넌트: `ConfirmDialog`(§8.7), `EmptyColumnState`, `BoardSkeleton`, `ErrorBanner`, `ErrorToast`, `PriorityBadge`/`OverdueIndicator` (`TC-COMP-010-01~09`, `011-01~04`, `012-01~04`, `013-01~04`, §3.10~3.13)
+  - 번호는 확정했다. 구현할 때는 각 컴포넌트·함수 블록 제목의 TC 번호를 기준으로 테스트 이름에 TC ID를 적는다.
 - [ ] **P0-3 테스트 지원 코드**
   - [ ] `__tests__/helpers/fixtures.ts`: `makeTicket`, `makeBoard` (Red 불필요, 사용하는 테스트로 검증)
   - [ ] dnd-kit mock 헬퍼: `DndContext` props를 캡처하는 `jest.mock` 패턴을 한 곳에 정리 (`__tests__/helpers/dndMock.tsx`)
@@ -228,7 +228,7 @@ graph LR
 
 #### P1-1. `ticketApi`
 
-구현 `src/client/api/ticketApi.ts` · 테스트 `__tests__/api/ticketApi.test.ts` · 선행 없음 · 참조 TRD §3, API_SPEC 전체
+구현 `src/client/api/ticketApi.ts` · 테스트 `__tests__/api/ticketApi.test.ts` · 선행 없음 · 참조 TRD §3, API_SPEC 전체 · TC `TC-CLIENT-API-001-01~14`
 
 함수: `fetchBoard`, `fetchTicket(id)`, `createTicket(input)`, `updateTicket(id, input)`, `deleteTicket(id)`, `completeTicket(id)`, `reorderTicket(input)` + 에러 클래스 `ApiError`(`status`, `code`, `message`, `field?`).
 
@@ -243,7 +243,7 @@ graph LR
 
 #### P1-2. `boardUtils` (순수 함수, 결정 D11)
 
-구현 `src/client/lib/boardUtils.ts` · 테스트 `__tests__/lib/boardUtils.test.ts` · 선행 없음
+구현 `src/client/lib/boardUtils.ts` · 테스트 `__tests__/lib/boardUtils.test.ts` · 선행 없음 · TC `TC-CLIENT-UTIL-001-01~26`
 
 - [ ] Red `calculatePosition(prev, next)`: 두 값 사이 → `Math.ceil((prev+next)/2)` (예: 1024, 2048 → 1536 / 1024, 1025 → 1025)
 - [ ] Red: 맨 앞(`prev=null`) → `next - 1024`, 맨 뒤(`next=null`) → `prev + 1024`, 빈 칼럼(둘 다 null) → `1024` (D8)
@@ -257,7 +257,7 @@ graph LR
 
 #### P1-3. `useTickets`
 
-구현 `src/client/hooks/useTickets.ts` · 테스트 `__tests__/hooks/useTickets.test.tsx` (`renderHook`, `ticketApi` mock) · 선행 P1-1, P1-2 · 참조 §3.5, §7
+구현 `src/client/hooks/useTickets.ts` · 테스트 `__tests__/hooks/useTickets.test.tsx` (`renderHook`, `ticketApi` mock) · 선행 P1-1, P1-2 · 참조 §3.5, §7 · TC `TC-HOOK-001-01~18`
 
 - [ ] Red: 마운트 시 `isLoading=true`, 응답 후 `board`가 채워지고 `isLoading=false` (D2)
 - [ ] Red: 초기 조회 실패 시 `error` 메시지가 채워지고 `isLoading=false`
@@ -276,7 +276,7 @@ graph LR
 
 #### P1-4. `useTicket` (결정 D4)
 
-구현 `src/client/hooks/useTicket.ts` · 테스트 `__tests__/hooks/useTicket.test.tsx` · 선행 P1-1
+구현 `src/client/hooks/useTicket.ts` · 테스트 `__tests__/hooks/useTicket.test.tsx` · 선행 P1-1 · TC `TC-HOOK-002-01~06`
 
 - [ ] Red: `ticketId`가 `null`이면 조회하지 않고 `ticket=null`, 로딩 아님
 - [ ] Red: `ticketId`가 주어지면 `isLoading=true` → 응답 후 `ticket` 채움 (TC-COMP-007-01/02)
@@ -307,13 +307,13 @@ graph LR
 - [ ] Red: `children` 텍스트가 보인다
 - [ ] 명세 대조: §8.6 매핑 표에 `neutral` 행이 없으므로 표에 추가
 
-#### P2-3. `PriorityBadge` (§5.2)
+#### P2-3. `PriorityBadge` (§5.2, TC-COMP-013-01~02)
 
 선행 `Badge`
 
 - [ ] Red: `priority`별로 텍스트(LOW/MEDIUM/HIGH)가 보이고 해당 variant가 적용된다 (TC-COMP-001-06 일부, §11 "색상에만 의존하지 않음")
 
-#### P2-4. `OverdueIndicator` (§5.3)
+#### P2-4. `OverdueIndicator` (§5.3, TC-COMP-013-03~04)
 
 선행 `Badge`
 
@@ -330,7 +330,7 @@ graph LR
 - [ ] Red: 열리면 내부 첫 포커스 가능 요소로 포커스가 이동한다 (TC-COMP-006-02의 기반)
 - [ ] 구현 메모: 오버레이는 `createPortal(document.body)` 사용 시 SSR 안전하게(클라이언트 컨테이너 안에서만 렌더), 짧은 페이드/스케일은 `.modal`의 CSS 애니메이션 사용(라이브러리 도입 없음), 중첩 모달(상세 위 확인 다이얼로그)에서 Esc가 **가장 위 모달만** 닫도록 확인
 
-#### P2-6. `ConfirmDialog` (§8.7, §6.3)
+#### P2-6. `ConfirmDialog` (§8.7, §6.3, TC-COMP-010-01~09)
 
 선행 `Button`, `Modal`
 
@@ -340,16 +340,16 @@ graph LR
 - [ ] Red: `danger=true`이면 확인 버튼이 danger variant, 기본은 primary
 - [ ] Red: `onConfirm`이 진행 중이면 확인 버튼이 로딩·비활성이다 (중복 삭제 방지)
 
-#### P2-7. `EmptyColumnState` (§8.4)
+#### P2-7. `EmptyColumnState` (§8.4, TC-COMP-011-01)
 
 - [ ] Red: TC-COMP-002-06 일부 — `label` 문구(예: "아직 카드가 없어요")가 보인다
 
-#### P2-8. `BoardSkeleton` (§8.1)
+#### P2-8. `BoardSkeleton` (§8.1, TC-COMP-011-02)
 
 - [ ] Red: TC-COMP-004-02 — 4개 칼럼 형태의 스켈레톤이 보이고 `aria-busy`/`role="status"`로 로딩임을 알린다
 - [ ] 구현 메모: 레이아웃은 `.board`를 재사용해 데스크톱/태블릿/모바일 배치를 맞춘다
 
-#### P2-9. `ErrorBanner` (§8.2)
+#### P2-9. `ErrorBanner` (§8.2, TC-COMP-011-03~04)
 
 선행 `Button`
 
@@ -357,7 +357,7 @@ graph LR
 - [ ] Red: 재시도 클릭 시 `onRetry` 호출
 - [ ] Red: `role="alert"`
 
-#### P2-10. `ErrorToast` (§8.3, 결정 D9)
+#### P2-10. `ErrorToast` (§8.3, 결정 D9, TC-COMP-012-01~04)
 
 - [ ] Red: `message`가 `role="alert"`로 보인다
 - [ ] Red: 5초 뒤 사라지고 `onDismiss`가 호출된다 — `jest.useFakeTimers()`로 검증 (D9)
@@ -592,4 +592,7 @@ graph LR
 | TC-COMP-008 (삭제) | P2-6, P5-3, P5-5 | 자동 |
 | TC-COMP-009 (Modal/Badge/Button) | P2-1, P2-2, P2-5 | 자동(009-03/04 색상은 수동 병행) |
 | TC-INT-001~005 | P7-2 | D10 결정에 따름 |
-| 임시 ID (`ticketApi`, `boardUtils`, 훅, 보조 컴포넌트) | P1, P2 | P0-2에서 TC 확정 후 자동 |
+| TC-CLIENT-API-001 (ticketApi) | P1-1 | 자동 |
+| TC-CLIENT-UTIL-001 (boardUtils) | P1-2, P5-1 | 자동 |
+| TC-HOOK-001~002 (useTickets, useTicket) | P1-3, P1-4 | 자동 |
+| TC-COMP-010~013 (ConfirmDialog, 상태·오류 표시, ErrorToast, 배지 단독) | P2-3, P2-4, P2-6~P2-10 | 자동 (색상은 수동 병행) |
