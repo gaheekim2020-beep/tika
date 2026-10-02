@@ -776,6 +776,221 @@ describe("ticketService", () => {
       expect(after.createdAt).toEqual(original.createdAt);
       expect(after.updatedAt.getTime()).toBeGreaterThan(original.updatedAt.getTime());
     });
+
+    describe("시각 규칙 (startedAt / completedAt)", () => {
+      const threeDaysAgo = () => new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+
+      // TC-API-007-05: BACKLOG → TODO (최초 시작)
+      it("startedAt이 null인 BACKLOG 티켓을 TODO로 이동하면 startedAt이 현재 시각으로 설정된다", async () => {
+        const moved = await insertTicket({ status: TICKET_STATUS.BACKLOG, startedAt: null });
+
+        const before = new Date();
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+        const after = new Date();
+
+        const startedAt = (await getRow(moved.id)).startedAt;
+        expect(startedAt).not.toBeNull();
+        expect(startedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(startedAt!.getTime()).toBeLessThanOrEqual(after.getTime());
+      });
+
+      // TC-API-007-06: TODO를 거치지 않고 IN_PROGRESS로 직접 이동
+      it("startedAt이 null인 BACKLOG 티켓을 IN_PROGRESS로 직접 이동해도 startedAt이 현재 시각으로 설정된다", async () => {
+        const moved = await insertTicket({ status: TICKET_STATUS.BACKLOG, startedAt: null });
+
+        const before = new Date();
+        await reorder(moved.id, TICKET_STATUS.IN_PROGRESS, 1024);
+        const after = new Date();
+
+        const startedAt = (await getRow(moved.id)).startedAt;
+        expect(startedAt).not.toBeNull();
+        expect(startedAt!.getTime()).toBeGreaterThanOrEqual(before.getTime());
+        expect(startedAt!.getTime()).toBeLessThanOrEqual(after.getTime());
+      });
+
+      // TC-API-007-07: 이미 설정된 startedAt은 덮어쓰지 않는다
+      it("startedAt이 이미 있는 티켓을 TODO ↔ IN_PROGRESS로 옮겨도 startedAt이 그대로다", async () => {
+        const startedAt = threeDaysAgo();
+        const moved = await insertTicket({ status: TICKET_STATUS.TODO, startedAt });
+
+        await reorder(moved.id, TICKET_STATUS.IN_PROGRESS, 1024);
+        expect((await getRow(moved.id)).startedAt?.getTime()).toBe(startedAt.getTime());
+
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+        expect((await getRow(moved.id)).startedAt?.getTime()).toBe(startedAt.getTime());
+      });
+
+      // TC-API-007-08: TODO → BACKLOG
+      it("TODO 티켓을 BACKLOG로 되돌리면 startedAt이 null이 된다", async () => {
+        const moved = await insertTicket({ status: TICKET_STATUS.TODO, startedAt: threeDaysAgo() });
+
+        await reorder(moved.id, TICKET_STATUS.BACKLOG, 1024);
+
+        expect((await getRow(moved.id)).startedAt).toBeNull();
+      });
+
+      // TC-API-007-25: IN_PROGRESS·DONE → BACKLOG
+      it("IN_PROGRESS 티켓을 BACKLOG로 되돌리면 startedAt이 null이 된다", async () => {
+        const moved = await insertTicket({
+          status: TICKET_STATUS.IN_PROGRESS,
+          startedAt: threeDaysAgo(),
+        });
+
+        await reorder(moved.id, TICKET_STATUS.BACKLOG, 1024);
+
+        expect((await getRow(moved.id)).startedAt).toBeNull();
+      });
+
+      // TC-API-007-25: DONE → BACKLOG는 startedAt과 completedAt을 모두 비운다
+      it("DONE 티켓을 BACKLOG로 되돌리면 startedAt과 completedAt이 모두 null이 된다", async () => {
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          startedAt: threeDaysAgo(),
+          completedAt: new Date(Date.now() - 60 * 60 * 1000),
+        });
+
+        await reorder(moved.id, TICKET_STATUS.BACKLOG, 1024);
+        const after = await getRow(moved.id);
+
+        expect(after.startedAt).toBeNull();
+        expect(after.completedAt).toBeNull();
+      });
+
+      // TC-API-007-09: DONE → 다른 칼럼
+      it.each([
+        [TICKET_STATUS.BACKLOG],
+        [TICKET_STATUS.TODO],
+        [TICKET_STATUS.IN_PROGRESS],
+      ] as const)("DONE 티켓을 %s로 이동하면 completedAt이 null이 된다", async (target) => {
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          startedAt: threeDaysAgo(),
+          completedAt: new Date(Date.now() - 60 * 60 * 1000),
+        });
+
+        await reorder(moved.id, target, 1024);
+
+        expect((await getRow(moved.id)).completedAt).toBeNull();
+      });
+
+      it("startedAt이 있는 DONE 티켓을 TODO로 이동하면 startedAt은 유지된다", async () => {
+        const startedAt = threeDaysAgo();
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          startedAt,
+          completedAt: new Date(Date.now() - 60 * 60 * 1000),
+        });
+
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+
+        expect((await getRow(moved.id)).startedAt?.getTime()).toBe(startedAt.getTime());
+      });
+
+      // TC-API-007-10: DONE이 아닌 칼럼 간 이동은 completedAt을 건드리지 않는다
+      it("BACKLOG → TODO → IN_PROGRESS로 이동하는 동안 completedAt은 계속 null이다", async () => {
+        const moved = await insertTicket({ status: TICKET_STATUS.BACKLOG, startedAt: null });
+
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+        expect((await getRow(moved.id)).completedAt).toBeNull();
+
+        await reorder(moved.id, TICKET_STATUS.IN_PROGRESS, 1024);
+        expect((await getRow(moved.id)).completedAt).toBeNull();
+      });
+
+      // TC-API-007-24: 24시간이 지나 보드에서 숨겨진 DONE 티켓도 이동할 수 있다
+      it("completedAt이 25시간 전이라 보드에서 숨겨진 DONE 티켓을 TODO로 이동하면 completedAt이 null이 되고 보드 TODO에 나타난다", async () => {
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          completedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        });
+        expect((await getBoardData()).DONE.map((ticket) => ticket.id)).not.toContain(moved.id);
+
+        const board = await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+
+        expect((await getRow(moved.id)).completedAt).toBeNull();
+        expect(board.TODO.map((ticket) => ticket.id)).toContain(moved.id);
+      });
+
+      it("BACKLOG 안에서 순서만 바꾸면 startedAt은 null로 유지된다", async () => {
+        await insertTicket({ status: TICKET_STATUS.BACKLOG, position: 1024 });
+        const moved = await insertTicket({ status: TICKET_STATUS.BACKLOG, position: 2048 });
+
+        await reorder(moved.id, TICKET_STATUS.BACKLOG, 0);
+
+        expect((await getRow(moved.id)).startedAt).toBeNull();
+      });
+
+      it("충돌 재정렬 경로로 이동해도 시각 규칙이 똑같이 적용된다", async () => {
+        await insertTicket({ status: TICKET_STATUS.TODO, position: 1024 });
+        const moved = await insertTicket({
+          status: TICKET_STATUS.DONE,
+          position: 5000,
+          completedAt: new Date(Date.now() - 60 * 60 * 1000),
+        });
+
+        await reorder(moved.id, TICKET_STATUS.TODO, 1024);
+        const after = await getRow(moved.id);
+
+        expect(after.completedAt).toBeNull();
+        expect(after.startedAt).not.toBeNull();
+      });
+    });
+
+    // TC-API-007-13: 존재하지 않는 ticketId
+    it("존재하지 않는 ticketId면 null을 반환하고 다른 티켓은 변경되지 않는다", async () => {
+      const other = await insertTicket({ position: 1024 });
+
+      const board = await reorderTicket({
+        ticketId: 999999,
+        status: TICKET_STATUS.TODO,
+        position: 1024,
+      });
+      const stored = await getRow(other.id);
+
+      expect(board).toBeNull();
+      expect(stored.status).toBe(TICKET_STATUS.TODO);
+      expect(stored.position).toBe(1024);
+    });
+
+    // TC-API-007-14: 재정렬 도중 실패하면 전체가 롤백된다 (원자성)
+    it("충돌 재정렬 중 두 번째 UPDATE가 실패하면 예외가 전파되고 이동 티켓을 포함한 모든 변경이 롤백된다", async () => {
+      const a = await insertTicket({ position: 1024 });
+      const b = await insertTicket({ position: 2048 });
+      const moved = await insertTicket({
+        status: TICKET_STATUS.BACKLOG,
+        position: 5000,
+        startedAt: null,
+      });
+      const snapshot = async () =>
+        Promise.all([a, b, moved].map(async (ticket) => getRow(ticket.id)));
+      const before = await snapshot();
+
+      const originalTransaction = db.transaction.bind(db);
+      const spy = jest.spyOn(db, "transaction").mockImplementation(((
+        callback: Parameters<typeof originalTransaction>[0]
+      ) =>
+        originalTransaction(async (tx) => {
+          const originalUpdate = tx.update.bind(tx);
+          let updateCount = 0;
+          tx.update = ((...args: Parameters<typeof originalUpdate>) => {
+            updateCount += 1;
+            if (updateCount === 2) {
+              throw new Error("DB 오류 주입");
+            }
+            return originalUpdate(...args);
+          }) as typeof tx.update;
+          return callback(tx);
+        })) as typeof db.transaction);
+
+      try {
+        // 대상 칼럼 [a=1024, b=2048]에 2048로 끼워 넣으면 moved → b 순서로 UPDATE가 두 번 필요하다
+        await expect(reorder(moved.id, TICKET_STATUS.TODO, 2048)).rejects.toThrow("DB 오류 주입");
+      } finally {
+        spy.mockRestore();
+      }
+
+      expect(await snapshot()).toEqual(before);
+    });
   });
 });
 

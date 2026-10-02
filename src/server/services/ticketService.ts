@@ -7,6 +7,7 @@ import {
   type BoardData,
   type CreateTicketInput,
   type ReorderTicketInput,
+  type ReorderableStatus,
   type TicketStatus,
   type TicketWithMeta,
   type UpdateTicketInput,
@@ -153,6 +154,27 @@ export async function deleteTicket(id: number): Promise<boolean> {
   return deleted.length > 0;
 }
 
+// 이동에 따른 startedAt/completedAt 변경분만 돌려준다 (키가 없으면 기존 값을 유지한다)
+function getReorderTimestampChanges(
+  current: Pick<TicketRow, "status" | "startedAt">,
+  target: ReorderableStatus,
+  now: Date
+): Partial<Pick<NewTicketRow, "startedAt" | "completedAt">> {
+  const changes: Partial<Pick<NewTicketRow, "startedAt" | "completedAt">> = {};
+
+  if (target === TICKET_STATUS.BACKLOG) {
+    changes.startedAt = null;
+  } else if (current.startedAt === null) {
+    changes.startedAt = now;
+  }
+
+  if (current.status === TICKET_STATUS.DONE) {
+    changes.completedAt = null;
+  }
+
+  return changes;
+}
+
 export async function reorderTicket(
   input: ReorderTicketInput
 ): Promise<BoardData | null> {
@@ -178,7 +200,11 @@ export async function reorderTicket(
       .where(and(eq(tickets.status, input.status), ne(tickets.id, input.ticketId)))
       .orderBy(asc(tickets.position), asc(tickets.id));
 
-    const movedChanges = { status: input.status, updatedAt: now };
+    const movedChanges = {
+      status: input.status,
+      updatedAt: now,
+      ...getReorderTimestampChanges(current, input.status, now),
+    };
 
     if (!others.some((other) => other.position === input.position)) {
       await tx
