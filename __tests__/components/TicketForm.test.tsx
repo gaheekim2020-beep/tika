@@ -248,4 +248,54 @@ describe("TicketForm — 수정 모드 (§6.2, D5)", () => {
     expect(screen.queryByText("종료예정일은 오늘 이후 날짜를 선택해주세요")).not.toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ title: "지연 티켓 수정", dueDate: "2020-01-01" }));
   });
+
+  // TC-COMP-007-13
+  it("값이 바뀌기 전에는 '저장' 버튼이 비활성이고 Enter로도 제출되지 않는다", async () => {
+    const user = userEvent.setup();
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    render(<TicketForm ticket={ticket} onSubmit={onSubmit} onCancel={jest.fn()} />);
+
+    expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("제목"), "{Enter}");
+
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  // TC-COMP-007-14
+  it("값을 바꾸면 '저장' 버튼이 활성이 된다", async () => {
+    const user = userEvent.setup();
+    render(<TicketForm ticket={ticket} onSubmit={noop} onCancel={jest.fn()} />);
+
+    await user.type(screen.getByLabelText("제목"), "!");
+
+    expect(screen.getByRole("button", { name: "저장" })).toBeEnabled();
+  });
+
+  // TC-COMP-007-15
+  it("원래 값으로 되돌리면 '저장' 버튼이 다시 비활성이 된다", async () => {
+    const user = userEvent.setup();
+    render(<TicketForm ticket={ticket} onSubmit={noop} onCancel={jest.fn()} />);
+
+    await user.type(screen.getByLabelText("제목"), "!");
+    await user.type(screen.getByLabelText("제목"), "{Backspace}");
+
+    expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
+  });
+
+  // TC-COMP-007-16
+  it("제목 앞뒤 공백만 바꾸면 변경으로 보지 않아 '저장' 버튼이 비활성이다", async () => {
+    const user = userEvent.setup();
+    render(<TicketForm ticket={ticket} onSubmit={noop} onCancel={jest.fn()} />);
+
+    await user.type(screen.getByLabelText("제목"), "  ");
+
+    expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
+  });
+
+  it("생성 모드의 '생성' 버튼은 입력 전에도 활성이다 (제목 오류는 제출 시 안내)", () => {
+    render(<TicketForm onSubmit={noop} onCancel={jest.fn()} />);
+
+    expect(screen.getByRole("button", { name: "생성" })).toBeEnabled();
+  });
 });

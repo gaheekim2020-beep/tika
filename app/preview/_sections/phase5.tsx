@@ -206,7 +206,7 @@ export const phase5Sections: PreviewSectionDef[] = [
     phase: "P5",
     title: "TicketForm",
     spec: "COMPONENT_SPEC §6.2 · TC-COMP-006-01·06·07·09, 007-05·08·09",
-    note: "확인: 생성 모드는 빈 값·MEDIUM·'생성', 수정 모드는 기존 값·'저장'. 제목 비우기 / 과거 종료예정일 입력 시 필드 아래 빨간 오류, errors prop 오류 표시, 날짜 선택기가 오늘 이전을 막는가.",
+    note: "확인: 생성 모드는 빈 값·MEDIUM·'생성', 수정 모드는 기존 값·'저장'(값을 바꾸기 전에는 비활성, 되돌리면 다시 비활성). 제목 비우기 / 과거 종료예정일 입력 시 필드 아래 빨간 오류, errors prop 오류 표시, 날짜 선택기가 오늘 이전을 막는가.",
     render: () => <TicketFormDemo />,
   },
   {

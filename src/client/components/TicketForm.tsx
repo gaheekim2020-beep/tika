@@ -6,6 +6,7 @@ import {
   type TicketWithMeta,
   type UpdateTicketInput,
 } from "@/shared/types";
+import { getChangedFields } from "@/client/lib/getChangedFields";
 import { createTicketSchema, updateTicketSchema } from "@/shared/validations/ticket";
 import { Button } from "./Button";
 
@@ -90,6 +91,10 @@ export const TicketForm = ({ ticket, onSubmit, onCancel, errors = {} }: TicketFo
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEdit = ticket !== undefined;
+  // 수정 모드는 값이 바뀌기 전까지 저장할 수 없다. 제목은 제출 시 trim되므로 앞뒤 공백만 바뀐 건 변경이 아니다.
+  const isDirty = ticket
+    ? Object.keys(getChangedFields(ticket, { ...buildUpdatePayload(values), title: values.title.trim() })).length > 0
+    : true;
   const messageOf = (field: FieldName) => clientErrors[field] ?? errors[field];
 
   const handleChange =
@@ -99,7 +104,7 @@ export const TicketForm = ({ ticket, onSubmit, onCancel, errors = {} }: TicketFo
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || !isDirty) return;
 
     if (ticket) {
       // 이미 지난 종료예정일을 바꾸지 않았다면 "오늘 이후" 검증 대상에서 뺀다 (지연 티켓 수정을 막지 않기 위함)
@@ -215,7 +220,7 @@ export const TicketForm = ({ ticket, onSubmit, onCancel, errors = {} }: TicketFo
         <Button variant="secondary" onClick={onCancel}>
           취소
         </Button>
-        <Button type="submit" isLoading={isSubmitting}>
+        <Button type="submit" isLoading={isSubmitting} disabled={!isDirty}>
           {isEdit ? "저장" : "생성"}
         </Button>
       </div>

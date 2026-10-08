@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import type { CreateTicketInput } from "@/shared/types";
+import { readError } from "@/client/lib/readError";
 import { ErrorToast } from "./ErrorToast";
 import { Modal } from "./Modal";
 import { TicketForm } from "./TicketForm";
@@ -11,15 +12,6 @@ type TicketFormModalProps = {
 };
 
 const FALLBACK_MESSAGE = "티켓을 저장하지 못했습니다";
-
-// ApiError(message, field?)와 같은 모양만 읽는다 — API 계층에 직접 의존하지 않는다
-const readError = (error: unknown): { message: string; field?: string } => {
-  if (error instanceof Error) {
-    const field = "field" in error && typeof error.field === "string" ? error.field : undefined;
-    return { message: error.message || FALLBACK_MESSAGE, field };
-  }
-  return { message: FALLBACK_MESSAGE };
-};
 
 export const TicketFormModal = ({ isOpen, onClose, onSubmit }: TicketFormModalProps) => {
   const titleId = useId();
@@ -40,7 +32,7 @@ export const TicketFormModal = ({ isOpen, onClose, onSubmit }: TicketFormModalPr
     try {
       await onSubmit(input);
     } catch (error) {
-      const { message, field } = readError(error);
+      const { message, field } = readError(error, FALLBACK_MESSAGE);
       if (field) {
         setFieldErrors({ [field]: message });
       } else {

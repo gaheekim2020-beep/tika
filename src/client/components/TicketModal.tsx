@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { TicketWithMeta, UpdateTicketInput } from "@/shared/types";
 import { getChangedFields } from "@/client/lib/getChangedFields";
+import { readError } from "@/client/lib/readError";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DeleteButton } from "./DeleteButton";
 import { ErrorToast } from "./ErrorToast";
@@ -21,15 +22,6 @@ type TicketModalProps = {
 
 const FALLBACK_MESSAGE = "요청을 처리하지 못했습니다";
 
-// ApiError(message, field?)와 같은 모양만 읽는다 — API 계층에 직접 의존하지 않는다
-const readError = (error: unknown): { message: string; field?: string } => {
-  if (error instanceof Error) {
-    const field = "field" in error && typeof error.field === "string" ? error.field : undefined;
-    return { message: error.message || FALLBACK_MESSAGE, field };
-  }
-  return { message: FALLBACK_MESSAGE };
-};
-
 export const TicketModal = ({ isOpen, ticket, isLoading, error, onClose, onSubmit, onDelete }: TicketModalProps) => {
   const titleId = useId();
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -43,21 +35,15 @@ export const TicketModal = ({ isOpen, ticket, isLoading, error, onClose, onSubmi
     onClose();
   };
 
-  // 변경된 필드만 PATCH한다. 바뀐 게 없으면 요청 없이 닫는다.
+  // 변경된 필드만 PATCH한다. 바뀐 게 없으면 폼이 저장 자체를 막는다.
   const handleSubmit = async (target: TicketWithMeta, input: UpdateTicketInput) => {
     setFieldErrors({});
     setToastMessage(null);
 
-    const changed = getChangedFields(target, input);
-    if (Object.keys(changed).length === 0) {
-      handleClose();
-      return;
-    }
-
     try {
-      await onSubmit(target.id, changed);
+      await onSubmit(target.id, getChangedFields(target, input));
     } catch (submitError) {
-      const { message, field } = readError(submitError);
+      const { message, field } = readError(submitError, FALLBACK_MESSAGE);
       if (field) {
         setFieldErrors({ [field]: message });
       } else {
@@ -76,7 +62,7 @@ export const TicketModal = ({ isOpen, ticket, isLoading, error, onClose, onSubmi
     try {
       await onDelete(target.id);
     } catch (deleteError) {
-      setToastMessage(readError(deleteError).message);
+      setToastMessage(readError(deleteError, FALLBACK_MESSAGE).message);
       return;
     }
 

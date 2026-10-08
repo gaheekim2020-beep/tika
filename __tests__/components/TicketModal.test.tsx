@@ -94,14 +94,11 @@ describe("TicketModal (§6.2) — 수정", () => {
     expect(onSubmit).toHaveBeenCalledWith(7, { description: "새 설명", priority: "LOW" });
   });
 
-  it("바뀐 필드가 없으면 요청 없이 닫힌다", async () => {
-    const user = userEvent.setup();
-    const { onSubmit, onClose } = renderModal();
+  // TC-COMP-007-13
+  it("값을 바꾸기 전에는 '저장' 버튼이 비활성이다", () => {
+    renderModal();
 
-    await user.click(screen.getByRole("button", { name: "저장" }));
-
-    expect(onSubmit).not.toHaveBeenCalled();
-    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("button", { name: "저장" })).toBeDisabled();
   });
 
   // TC-COMP-007-08 / 007-09

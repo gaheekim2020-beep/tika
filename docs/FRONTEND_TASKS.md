@@ -503,9 +503,9 @@ graph LR
 - [X] Red: 유효한 입력이면 `onSubmit`이 입력값으로 호출된다 (공백만 있는 제목은 거절)
 - [X] Red: 하단에 "취소"와 제출 버튼이 있고(생성 모드 "생성" / 수정 모드 "저장"), "취소"를 누르면 `onCancel`이 호출되고 `onSubmit`은 호출되지 않는다 (`onCancel` prop 추가, 2026-10-08)
 - [X] Red: 수정 모드에서 이미 지난 종료예정일을 **바꾸지 않으면** 검증 오류 없이 제출된다 (바꾼 값이 과거면 오류)
-- [ ] Red: TC-COMP-007-13~16 — 수정 모드의 "저장" 버튼은 값이 바뀌기 전에는 비활성(Enter 제출도 막힘), 값을 바꾸면 활성, 원래 값으로 되돌리면 다시 비활성, 제목 앞뒤 공백만 바꾸면 비활성이다 (2026-10-08)
-- [ ] 구현 메모: 변경 여부는 `getChangedFields`로 판단한다. 이에 따라 `TicketModal`의 "바뀐 게 없으면 요청 없이 닫기" 분기는 제거한다 (폼이 제출 자체를 막는다)
-- [ ] 구현 메모: 폼 오류 해석(`message`, `field`)은 `src/client/lib/readError.ts`의 공용 함수로 두고 `TicketFormModal`·`TicketModal`이 함께 쓴다
+- [X] Red: TC-COMP-007-13~16 — 수정 모드의 "저장" 버튼은 값이 바뀌기 전에는 비활성(Enter 제출도 막힘), 값을 바꾸면 활성, 원래 값으로 되돌리면 다시 비활성, 제목 앞뒤 공백만 바꾸면 비활성이다 (2026-10-08)
+- [X] 구현 메모: 변경 여부는 `getChangedFields`로 판단한다. 이에 따라 `TicketModal`의 "바뀐 게 없으면 요청 없이 닫기" 분기는 제거한다 (폼이 제출 자체를 막는다)
+- [X] 구현 메모: 폼 오류 해석(`message`, `field`)은 `src/client/lib/readError.ts`의 공용 함수로 두고 `TicketFormModal`·`TicketModal`이 함께 쓴다
 - [X] Red: TC-COMP-006-09 — 제출 Promise가 진행되는 동안 제출 버튼이 스피너·비활성이라 중복 제출되지 않고, 끝나면 복구된다
 - [X] 구현 메모: 검증은 `@/shared/validations` 스키마를 import해 재사용(메시지 문구 동일), `src/server`는 import하지 않는다, 변경된 필드만 추려내는 `getChangedFields(original, values)`는 `src/client/lib/getChangedFields.ts`의 순수 함수로 두고 `TicketModal`에서 PATCH 본문 생성에 사용 (테스트 `__tests__/lib/getChangedFields.test.ts`)
 
