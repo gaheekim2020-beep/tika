@@ -501,6 +501,8 @@ graph LR
 - [ ] Red: TC-COMP-006-07 / 007-09 — 과거 종료예정일이면 해당 입력창 아래에 "종료예정일은 오늘 이후 날짜를 선택해주세요"가 보인다. 날짜 입력에는 `min`(오늘)이 설정된다
 - [ ] Red: `errors` prop(`{ title: "..." }`)이 전달되면 해당 필드 아래에 메시지가 보이고 `aria-invalid`, `aria-describedby`로 연결된다 (서버 400과 클라이언트 검증을 같은 방식으로 표시, §6.2)
 - [ ] Red: 유효한 입력이면 `onSubmit`이 입력값으로 호출된다 (공백만 있는 제목은 거절)
+- [ ] Red: 하단에 "취소"와 제출 버튼이 있고(생성 모드 "생성" / 수정 모드 "저장"), "취소"를 누르면 `onCancel`이 호출되고 `onSubmit`은 호출되지 않는다 (`onCancel` prop 추가, 2026-10-08)
+- [ ] Red: 수정 모드에서 이미 지난 종료예정일을 **바꾸지 않으면** 검증 오류 없이 제출된다 (바꾼 값이 과거면 오류)
 - [ ] Red: TC-COMP-006-09 — 제출 Promise가 진행되는 동안 제출 버튼이 스피너·비활성이라 중복 제출되지 않고, 끝나면 복구된다
 - [ ] 구현 메모: 검증은 `@/shared/validations` 스키마를 import해 재사용(메시지 문구 동일), `src/server`는 import하지 않는다, 변경된 필드만 추려내는 `getChangedFields(original, values)`는 `boardUtils` 옆 순수 함수로 두고 `TicketModal`에서 PATCH 본문 생성에 사용
 
@@ -521,7 +523,7 @@ graph LR
 선행 `Modal`, `TicketForm`, `Button`, `ErrorToast`
 
 - [ ] Red: TC-COMP-006-01/02 — 열면 빈 폼(우선순위 MEDIUM)이 보이고 **제목에 포커스**가 있다
-- [ ] Red: TC-COMP-006-03 — 제목만 입력하고 "생성"을 누르면 `onSubmit`이 `{ title }`로 호출되고 성공 시 모달이 닫힌다 (`onClose`)
+- [ ] Red: TC-COMP-006-03 — 제목만 입력하고 "생성"을 누르면 `onSubmit`이 `{ title, priority: "MEDIUM" }`으로 호출되고 성공 시 모달이 닫힌다 (`onClose`)
 - [ ] Red: TC-COMP-006-04 — 모든 필드를 채우면 `onSubmit`이 모든 필드로 호출된다
 - [ ] Red: TC-COMP-006-05 — "취소" 또는 오버레이 바깥 클릭이면 `onSubmit` 없이 `onClose`
 - [ ] Red: TC-COMP-006-06/07 — 클라이언트 검증 실패 시 모달이 유지되고 필드 아래 오류가 보인다

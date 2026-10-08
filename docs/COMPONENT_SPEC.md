@@ -490,6 +490,7 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 | ticket | `TicketWithMeta` | X | 초기값으로 사용할 티켓 데이터. 없으면 생성 모드(빈 값, 우선순위 MEDIUM) |
 | onSubmit | `(input: UpdateTicketInput) => Promise<void>` (수정) / `(input: CreateTicketInput) => Promise<void>` (생성) | O | 저장 핸들러. `ticket` 유무로 시그니처가 갈리는 판별 유니온 Props로 정의한다 |
 | errors | `Record<string, string>` | X (기본 `{}`) | 필드별 에러 메시지. key는 API_SPEC.md 400 응답의 `error.field` 값(`title`/`description`/`priority`/`dueDate` 등)과 동일하게 맞춘다 |
+| onCancel | `() => void` | O | 취소 핸들러. 폼 하단 버튼 영역에 "취소" 버튼과 제출 버튼(생성 모드 "생성" / 수정 모드 "저장")을 함께 렌더링한다 (`docs/reference/mockup.html` 기준) |
 
 **필드**: 제목 / 설명 / 우선순위 / 시작예정일 / 종료예정일 (수정 가능, FR-004). `status`/`position`은 이 폼에서 다루지 않는다 (드래그앤드롭 전용, FR-007) — `TicketDetailView`에서 읽기 전용으로만 표시된다.
 
@@ -499,6 +500,7 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 - 클라이언트 사이드 Zod 검증 실패, 서버 400 응답(`error.field` 존재) 모두 동일하게 `errors` prop을 통해 전달받는다 — 검증 주체(클라이언트/서버)에 따라 표시 방식을 분기하지 않는다.
 - `errors[fieldName]`이 있으면 해당 입력 필드 바로 아래에 메시지를 표시한다.
 - `error.field`가 없는 400 응답(필드 특정 불가)은 이 prop으로 전달하지 않고, 호출부(`TicketFormModal`/`TicketModal`)가 폼 상단 또는 `ErrorToast`(§8.3)로 표시한다.
+- **수정 모드의 종료예정일 검증**: 이미 기한이 지난 티켓(`isOverdue`)의 종료예정일을 바꾸지 않았다면 "오늘 이후" 검증에 걸리지 않도록, **값이 바뀐 경우에만** 종료예정일을 검증한다. 생성 모드는 항상 검증한다.
 
 ### 6.3 DeleteButton / ConfirmDialog
 
@@ -658,7 +660,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | TicketFormModal | isOpen, onClose, onSubmit | onSubmit, onClose |
 | TicketModal | isOpen, ticket, isLoading, error, onClose, onSubmit, onDelete | onSubmit, onDelete, onClose |
 | TicketDetailView | ticket | - |
-| TicketForm | ticket, onSubmit, errors | onSubmit |
+| TicketForm | ticket, onSubmit, errors, onCancel | onSubmit, onCancel |
 | DeleteButton | onClick | - |
 | Modal (primitive) | isOpen, onClose, children | onClose |
 | Badge (primitive) | variant, children | - |
