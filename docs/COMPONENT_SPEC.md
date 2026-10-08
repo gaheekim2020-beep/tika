@@ -351,6 +351,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 | onTicketClick | `(ticket: TicketWithMeta) => void` | O | 카드 클릭 핸들러 |
 
 **동작**:
+- **구현 단계(2026-10-08 결정)**: P3에서는 표시와 클릭 전달만 구현하고, 아래 dnd-kit 연결(droppable·`SortableContext`)은 `Board`를 만드는 P4에서 `Column`에 추가한다. 최종 구조(§1 트리)는 그대로다.
 - droppable 영역 (dnd-kit) — DONE 칼럼에 대한 드롭은 `PATCH /api/tickets/:id/complete`, 나머지는 `PATCH /api/tickets/reorder` 호출로 분기 (§7)
 - 칼럼 내부에 `SortableContext`(dnd-kit)를 두어 같은 칼럼 안에서의 순서 변경을 지원한다.
 - 티켓이 0개일 경우 `EmptyColumnState` 표시 (§8)
@@ -385,6 +386,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 - 종료예정일(`dueDate`) — 존재할 경우 표시
 
 **동작**:
+- **구현 단계(2026-10-08 결정)**: P3에서는 표시·클릭·Enter만 구현하고, 아래 draggable 연결과 `DragOverlay`용 미리보기 표시는 P4에서 추가한다.
 - draggable (dnd-kit) — 드래그 시작 시 `DragOverlay`에 카드 미리보기 표시 (§7)
 - 클릭(드래그가 아닌 클릭)으로 `TicketModal` 오픈
 - `isOverdue === true`일 때 카드 테두리를 `status.overdue.border` 토큰으로 강조 표시 (DESIGN_SYSTEM.md §1 "Overdue 카드 표시 규칙" — 테두리는 `TicketCard` 자체가, 배지는 `OverdueIndicator`가 각각 담당)

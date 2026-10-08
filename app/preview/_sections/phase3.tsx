@@ -1,6 +1,4 @@
-import { useState, type ReactNode } from "react";
-import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import { SortableContext } from "@dnd-kit/sortable";
+import { useState } from "react";
 import { Column } from "@/client/components/Column";
 import { ColumnHeader } from "@/client/components/ColumnHeader";
 import { TicketCard } from "@/client/components/TicketCard";
@@ -10,23 +8,8 @@ import type { PreviewSectionDef } from "../_registry";
 
 /*
  * Phase 3 프리뷰 — 카드 · 칼럼.
- * 드롭 처리는 Board(P4)의 몫이라 여기서는 드래그를 시작해 보는 것까지만 되고, 놓으면 제자리로 돌아간다.
+ * 드래그앤드롭은 Board(P4)에서 연결하므로 여기서는 표시와 클릭만 확인한다.
  */
-
-// TRD §1.5와 같은 센서 구성: 포인터는 8px 이상 움직여야 드래그, 키보드는 Space로만 픽업
-// DndContext의 id를 고정하지 않으면 aria-describedby("DndDescribedBy-N")가 서버·클라이언트에서 달라 hydration 오류가 난다
-const PreviewDnd = ({ id, ids, children }: { id: string; ids: number[]; children: ReactNode }) => {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } })
-  );
-
-  return (
-    <DndContext id={id} sensors={sensors}>
-      <SortableContext items={ids}>{children}</SortableContext>
-    </DndContext>
-  );
-};
 
 const cardSamples: { label: string; ticket: TicketWithMeta }[] = [
   { label: "기본 (설명 없음)", ticket: makeTicket({ id: 1, title: "성능 테스트 계획", priority: "MEDIUM" }) },
@@ -67,7 +50,7 @@ const TicketCardDemo = () => {
   const [clicked, setClicked] = useState<string | null>(null);
 
   return (
-    <PreviewDnd id="preview-ticket-card" ids={cardSamples.map(({ ticket }) => ticket.id)}>
+    <>
       <div className="grid gap-4 sm:grid-cols-2">
         {cardSamples.map(({ label, ticket }) => (
           <div key={ticket.id} className="flex flex-col gap-1.5">
@@ -77,9 +60,9 @@ const TicketCardDemo = () => {
         ))}
       </div>
       <p className="mt-4 text-xs text-text-secondary">
-        마지막으로 연 카드: {clicked ?? "없음"} (클릭 또는 Tab → Enter. Space는 드래그 픽업이라 열리지 않습니다)
+        마지막으로 연 카드: {clicked ?? "없음"} (클릭 또는 Tab → Enter. Space로는 열리지 않습니다)
       </p>
-    </PreviewDnd>
+    </>
   );
 };
 
@@ -96,10 +79,9 @@ const ColumnDemo = () => {
   const board = makeBoard();
   const sample = [board.BACKLOG, board.TODO, makeEmptyBoard().IN_PROGRESS, board.DONE];
   const statuses = ["BACKLOG", "TODO", "IN_PROGRESS", "DONE"] as const;
-  const ids = Object.values(board).flatMap((tickets) => tickets.map((ticket) => ticket.id));
 
   return (
-    <PreviewDnd id="preview-column" ids={ids}>
+    <>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statuses.map((status, index) => (
           <Column
@@ -111,7 +93,7 @@ const ColumnDemo = () => {
         ))}
       </div>
       <p className="mt-4 text-xs text-text-secondary">마지막으로 연 카드: {clicked ?? "없음"}</p>
-    </PreviewDnd>
+    </>
   );
 };
 
@@ -129,7 +111,7 @@ export const phase3Sections: PreviewSectionDef[] = [
     phase: "P3",
     title: "TicketCard",
     spec: "COMPONENT_SPEC §5.1 · TC-COMP-001-01~15",
-    note: "확인: 지연 카드의 빨간 테두리·배지·날짜 색, DONE 카드의 흐린 표시, 긴 제목 2줄 말줄임(001-07), 긴 설명 2줄 말줄임(001-14), Tab 포커스 링, 드래그 시 원본이 흐려지는가.",
+    note: "확인: 지연 카드의 빨간 테두리·배지·날짜 색, DONE 카드의 흐린 표시, 긴 제목 2줄 말줄임(001-07), 긴 설명 2줄 말줄임(001-14), Tab 포커스 링.",
     render: () => <TicketCardDemo />,
   },
   {
