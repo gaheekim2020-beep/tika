@@ -40,4 +40,10 @@ describe("프리뷰 섹션 렌더링", () => {
     ]);
     expect(PREVIEW_PHASES.some((phase) => phase.id === "P2")).toBe(true);
   });
+
+  it("Phase 3 컴포넌트 3개가 모두 등록돼 있다", () => {
+    const ids = previewSections.filter((section) => section.phase === "P3").map((section) => section.id);
+
+    expect(ids).toEqual(["column-header", "ticket-card", "column"]);
+  });
 });
