@@ -363,6 +363,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 |------|------|------|------|
 | label | `string` | O | `COLUMN_LABELS[status]` 값 |
 | count | `number` | O | 카드 수 (US-003) |
+| showCount | `boolean` | X | `false`이면 카드 수를 숨긴다. 기본값 `true`. `Column`이 BACKLOG에서만 `false`로 넘긴다 (목업의 Backlog 헤더에는 숫자가 없다) |
 
 ---
 
