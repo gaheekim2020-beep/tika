@@ -73,7 +73,7 @@
 |------|------|
 | 드롭 결과 계산 | `boardUtils`의 순수 함수로 분리해 단위 테스트 (P1) |
 | `Board`의 `onDragEnd` 분기 | `@dnd-kit/core`의 `DndContext`를 mock해 핸들러를 캡처하고 가짜 이벤트로 직접 호출 — `__tests__/helpers/dndMock.tsx`의 `dnd.start/over/end/cancel(...)`, 센서 구성은 `dnd.sensorCalls()` |
-| `TicketCard`·`Column` | 실제 `DndContext` + `SortableContext`로 감싸 렌더링만 검증 (드래그 동작 없음) — `__tests__/helpers/renderWithDnd.tsx` |
+| `TicketCard`·`Column` | P3에서는 dnd-kit 없이 일반 `render`로 검증. P4에서 dnd를 연결할 때 실제 `DndContext` + `SortableContext`로 감싸 렌더링만 검증 (드래그 동작 없음) — `__tests__/helpers/renderWithDnd.tsx` |
 | 센서 설정 (TRD §1.5) | `useSensor` 호출 인자를 검증하거나 설정 상수를 export해 단위 테스트 |
 | 실제 마우스·터치·키보드 드래그 | **수동 점검**(P7) 또는 통합 도구 도입 후 자동화 (결정 D10) |
 
@@ -419,42 +419,42 @@ graph LR
 
 #### P3-1. `ColumnHeader` (§4.2)
 
-- [ ] Red: TC-COMP-002-03 — `label`("In Progress")이 보인다
-- [ ] Red: TC-COMP-002-01 일부 — `count`가 숫자로 보인다
-- [ ] Red: 카드 수 숨김 옵션(`showCount=false`)이면 숫자가 보이지 않는다 (§1.1 설계 노트, Backlog용)
-- [ ] 명세 대조: §4.2 Props 표에 `showCount`가 없으므로 추가
+- [X] Red: TC-COMP-002-03 — `label`("In Progress")이 보인다
+- [X] Red: TC-COMP-002-01 일부 — `count`가 숫자로 보인다
+- [X] Red: 카드 수 숨김 옵션(`showCount=false`)이면 숫자가 보이지 않는다 (§1.1 설계 노트, Backlog용)
+- [X] 명세 대조: §4.2 Props 표에 `showCount`가 없으므로 추가
 
 #### P3-2. `TicketCard` (§5.1, 결정 D6·D7)
 
-선행 `PriorityBadge`, `OverdueIndicator` · 테스트에서는 `DndContext` + `SortableContext`로 감싸 렌더 · 클래스 `.card`, `.card--overdue/done/dragging/overlay`, `.card-title`, `.card-meta`, `.card-due`
+선행 `PriorityBadge`, `OverdueIndicator` · **P3는 dnd-kit 없이 표시·클릭·Enter만 구현(2026-10-08 결정), dnd 연결은 P4** · 클래스 `.card`, `.card--overdue/done`(`dragging/overlay`는 P4), `.card-title`, `.card-meta`, `.card-due`
 
-- [ ] Red: TC-COMP-001-01 — 제목과 우선순위 뱃지가 보인다
-- [ ] Red: TC-COMP-001-02/03 — `dueDate`가 있으면 종료예정일 텍스트가 보이고, `null`이면 보이지 않는다 (표시 형식은 목업의 "종료예정 MM-DD")
-- [ ] Red: TC-COMP-001-04/05 — `isOverdue=true`이면 "지연" 뱃지와 `.card--overdue`, `false`이면 둘 다 없다
-- [ ] Red: TC-COMP-001-10/11 — DONE 카드도 같은 기본 정보를 보이고, 기한이 지났어도 `isOverdue=false`면 지연 표시가 없다
-- [ ] Red: TC-COMP-001-12 — `description=null`이면 설명 영역(`.card-desc`)이 렌더링되지 않고 제목·뱃지만 보인다
-- [ ] Red: TC-COMP-001-13 — `description`이 있으면 제목 아래에 설명 텍스트가 보인다
-- [ ] Red: TC-COMP-001-14 — 1000자 설명도 `.card-desc`(최대 2줄 말줄임)로 렌더링된다 (줄 수 제한 자체는 P7 수동 확인)
-- [ ] Red: TC-COMP-001-08 — 카드 클릭 시 `onClick(ticket)` 호출
-- [ ] Red: TC-COMP-001-09 — 포커스 후 Enter로 `onClick` 호출
-- [ ] Red: TC-COMP-001-15 — 포커스 후 Space는 `onClick`을 호출하지 않는다 (D6: Space는 dnd-kit 픽업 전용, 센서 없는 단독 렌더링으로 검증)
-- [ ] Red: `role="button"`, `tabIndex=0`, `aria-label="{title}, 우선순위 {priority}{, 지연됨}"`가 일치한다 (§5.1)
-- [ ] Red: TC-COMP-001-06 일부 — 우선순위별 뱃지 variant가 다르다
-- [ ] 구현 메모: `useSortable`로 draggable 구현, 드래그 중 원본은 `.card--dragging`, `DragOverlay`용 미리보기는 `isOverlay` 같은 prop으로 `.card--overlay` 적용, 클릭과 드래그 구분은 센서(`distance: 8`)에 맡기고 카드에서 별도 처리하지 않는다
-- [ ] 스타일 보강: TC-COMP-001-07(200자 제목 말줄임)을 위해 `.card-title`에 `line-clamp-2` 추가 (P7에서 시각 확인)
+- [X] Red: TC-COMP-001-01 — 제목과 우선순위 뱃지가 보인다
+- [X] Red: TC-COMP-001-02/03 — `dueDate`가 있으면 종료예정일 텍스트가 보이고, `null`이면 보이지 않는다 (표시 형식은 목업의 "종료예정 MM-DD")
+- [X] Red: TC-COMP-001-04/05 — `isOverdue=true`이면 "지연" 뱃지와 `.card--overdue`, `false`이면 둘 다 없다
+- [X] Red: TC-COMP-001-10/11 — DONE 카드도 같은 기본 정보를 보이고, 기한이 지났어도 `isOverdue=false`면 지연 표시가 없다
+- [X] Red: TC-COMP-001-12 — `description=null`이면 설명 영역(`.card-desc`)이 렌더링되지 않고 제목·뱃지만 보인다
+- [X] Red: TC-COMP-001-13 — `description`이 있으면 제목 아래에 설명 텍스트가 보인다
+- [X] Red: TC-COMP-001-14 — 1000자 설명도 `.card-desc`(최대 2줄 말줄임)로 렌더링된다 (줄 수 제한 자체는 P7 수동 확인)
+- [X] Red: TC-COMP-001-08 — 카드 클릭 시 `onClick(ticket)` 호출
+- [X] Red: TC-COMP-001-09 — 포커스 후 Enter로 `onClick` 호출
+- [X] Red: TC-COMP-001-15 — 포커스 후 Space는 `onClick`을 호출하지 않는다 (D6: Space는 dnd-kit 픽업 전용, 센서 없는 단독 렌더링으로 검증)
+- [X] Red: `role="button"`, `tabIndex=0`, `aria-label="{title}, 우선순위 {priority}{, 지연됨}"`가 일치한다 (§5.1)
+- [X] Red: TC-COMP-001-06 일부 — 우선순위별 뱃지 variant가 다르다
+- [X] 구현 메모(P3): 표시 + 클릭 + Enter만 구현한다. `role="button"`, `tabIndex=0`, `aria-label`은 카드가 직접 갖는다. dnd-kit은 쓰지 않는다 (2026-10-08 결정, dnd는 P4)
+- [X] 스타일 보강: TC-COMP-001-07(200자 제목 말줄임)을 위해 `.card-title`에 `line-clamp-2` 추가 (P7에서 시각 확인)
 
 #### P3-3. `Column` (§4.1)
 
 선행 `ColumnHeader`, `TicketCard`, `EmptyColumnState` · 클래스 `.column`, `.column--backlog`, `.column--over`, `.card-list`, `.column-note`
 
-- [ ] Red: TC-COMP-002-01 — 카드 3개와 헤더 숫자 "3"이 보인다
-- [ ] Red: TC-COMP-002-02 — 전달된 순서(`position` 오름차순) 그대로 위에서 아래로 렌더링한다
-- [ ] Red: TC-COMP-002-06 — `tickets=[]`이면 빈 상태 문구가 보이고 카드는 없다
-- [ ] Red: TC-COMP-002-04/05 — DONE에만 "24시간 지난 완료 항목은 표시되지 않아요"가 보인다
-- [ ] Red: `aria-label="{칼럼명} 칼럼"` 영역이 있다 (§11)
-- [ ] Red: 카드 클릭이 `onTicketClick(ticket)`으로 전달된다
-- [ ] Red: BACKLOG는 `.column--backlog`이다
-- [ ] 구현 메모: `useDroppable`(칼럼 영역 id는 카드 id와 겹치지 않게 `column:<status>`), `SortableContext`에 카드 id 목록 전달, 드래그가 올라와 있으면(`isOver`) `.column--over` 적용 (TC-COMP-003-06의 기반), 빈 칼럼에서도 드롭 영역이 유지되도록 `.card-list`의 최소 높이 사용
+- [X] Red: TC-COMP-002-01 — 카드 3개와 헤더 숫자 "3"이 보인다
+- [X] Red: TC-COMP-002-02 — 전달된 순서(`position` 오름차순) 그대로 위에서 아래로 렌더링한다
+- [X] Red: TC-COMP-002-06 — `tickets=[]`이면 빈 상태 문구가 보이고 카드는 없다
+- [X] Red: TC-COMP-002-04/05 — DONE에만 "24시간 지난 완료 항목은 표시되지 않아요"가 보인다
+- [X] Red: `aria-label="{칼럼명} 칼럼"` 영역이 있다 (§11)
+- [X] Red: 카드 클릭이 `onTicketClick(ticket)`으로 전달된다
+- [X] Red: BACKLOG는 `.column--backlog`이다
+- [X] 구현 메모(P3): 헤더 + 카드 목록 + 빈 상태 + DONE 안내만 구현한다. BACKLOG는 `ColumnHeader`에 `showCount={false}`를 넘긴다. dnd-kit은 쓰지 않는다 (2026-10-08 결정, dnd는 P4)
 
 **Phase 3 완료 기준**: TC-COMP-001-01~15, 002-01~06 통과 (색상·말줄임은 P7 수동 확인).
 
@@ -477,6 +477,9 @@ graph LR
 - [ ] Red: TC-COMP-003-05 — `onDragStart` 후 `DragOverlay`에 해당 카드 미리보기가 렌더링되고, 종료/취소 후 사라진다 (`activeId`는 `Board` 로컬 상태, §3.4)
 - [ ] Red: TC-COMP-003-06 — `onDragOver`로 대상 칼럼 하이라이트가 켜지고 종료 시 꺼진다
 - [ ] Red: 센서 구성 (TRD §1.5) — `PointerSensor(distance: 8)`, `TouchSensor(delay: 250, tolerance: 5)`, `KeyboardSensor`가 등록된다 (TC-COMP-003-11의 자동 검증 범위). `KeyboardSensor`는 `keyboardCodes.start = [KeyboardCode.Space]`(D6), 나머지는 기본값(TRD §1.5)
+- [ ] P4에서 `TicketCard`에 dnd 연결: `useSortable`로 draggable 구현, 드래그 중 원본은 `.card--dragging`, `DragOverlay`용 미리보기는 `isOverlay` 같은 prop으로 `.card--overlay` 적용(원본과 같은 id를 `useSortable`에 중복 등록하지 않는다), 키 핸들러는 dnd 리스너의 `onKeyDown`과 합쳐 Enter만 모달을 연다(D6), 클릭과 드래그 구분은 센서(`distance: 8`)에 맡긴다. 테스트는 `renderWithDnd`로 감싸 렌더링만 검증
+- [ ] P4에서 `Column`에 dnd 연결: `useDroppable`(칼럼 영역 id는 `column:<status>`), `SortableContext`에 카드 id 목록 전달, `isOver`이면 `.column--over` 적용 (TC-COMP-003-06의 기반), 빈 칼럼에서도 드롭 영역이 유지되도록 `.card-list` 최소 높이 사용
+- [ ] P4에서 `DndContext`에 고정 `id` 지정: 지정하지 않으면 `aria-describedby`(`DndDescribedBy-N`)가 서버·클라이언트에서 달라 hydration 오류가 난다 (P3 프리뷰에서 발생했던 문제)
 - [ ] 구현 메모: `DndContext`는 `Board`에 한 곳만, `onTicketClick`은 `Column`으로 전달, 레이아웃은 `.board`(모바일 세로 / `md` 2열 / `lg` `280px 1fr 1fr 1fr`)
 - [ ] 수동 확인(P7): TC-COMP-003-07(키보드 이동), 003-08~10(배치), 003-11(터치 드래그)
 
