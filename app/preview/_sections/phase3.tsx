@@ -14,14 +14,15 @@ import type { PreviewSectionDef } from "../_registry";
  */
 
 // TRD §1.5와 같은 센서 구성: 포인터는 8px 이상 움직여야 드래그, 키보드는 Space로만 픽업
-const PreviewDnd = ({ ids, children }: { ids: number[]; children: ReactNode }) => {
+// DndContext의 id를 고정하지 않으면 aria-describedby("DndDescribedBy-N")가 서버·클라이언트에서 달라 hydration 오류가 난다
+const PreviewDnd = ({ id, ids, children }: { id: string; ids: number[]; children: ReactNode }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] } })
   );
 
   return (
-    <DndContext sensors={sensors}>
+    <DndContext id={id} sensors={sensors}>
       <SortableContext items={ids}>{children}</SortableContext>
     </DndContext>
   );
@@ -66,7 +67,7 @@ const TicketCardDemo = () => {
   const [clicked, setClicked] = useState<string | null>(null);
 
   return (
-    <PreviewDnd ids={cardSamples.map(({ ticket }) => ticket.id)}>
+    <PreviewDnd id="preview-ticket-card" ids={cardSamples.map(({ ticket }) => ticket.id)}>
       <div className="grid gap-4 sm:grid-cols-2">
         {cardSamples.map(({ label, ticket }) => (
           <div key={ticket.id} className="flex flex-col gap-1.5">
@@ -98,7 +99,7 @@ const ColumnDemo = () => {
   const ids = Object.values(board).flatMap((tickets) => tickets.map((ticket) => ticket.id));
 
   return (
-    <PreviewDnd ids={ids}>
+    <PreviewDnd id="preview-column" ids={ids}>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statuses.map((status, index) => (
           <Column
