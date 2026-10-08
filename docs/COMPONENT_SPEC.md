@@ -409,7 +409,7 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 
 **표시**: 경고 아이콘 + "지연" 텍스트 뱃지. 색상은 `status.overdue` 토큰 사용 (DESIGN_SYSTEM.md §1).
 
-**접근성**: `aria-label="지연됨"`
+**접근성**: `aria-label="지연됨"`. 역할이 없는 `span`에는 `aria-label`을 쓸 수 없으므로 `role="img"`로 하나의 이미지처럼 묶어 "지연됨"으로 읽히게 한다 (아이콘은 `aria-hidden`).
 
 ---
 
@@ -537,6 +537,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 **Props**: `message: string`, `onDismiss: () => void`
 생성/수정/삭제 등 모달 기반 액션의 API 실패 시 일시적으로 표시되는 토스트. 드래그앤드롭 실패는 조용히 롤백만 하고 이 토스트를 띄우지 않는다 (§7).
 표시 후 **5초가 지나면 자동으로 사라지며** `onDismiss`를 호출한다 (`useTickets.clearError`에 연결, §3.5). `message`가 바뀌면 타이머를 다시 시작한다. `role="alert"`로 스크린리더에 즉시 알린다.
+토스트는 **한 번에 하나만** 표시한다. 오류가 연속으로 발생하면 새 메시지가 이전 메시지를 대체하며(이전 메시지는 5초를 채우지 못하고 사라진다), 오류를 큐나 스택으로 쌓지 않는 것이 의도된 설계다. 토스트가 뜨는 경우는 모달 기반 액션의 실패뿐이라 짧은 간격으로 여러 오류가 겹칠 가능성이 낮기 때문이다.
 
 ### 8.4 EmptyColumnState
 **Props**: `label: string` (예: "아직 카드가 없어요")
@@ -552,13 +553,19 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | isOpen | `boolean` | O | 표시 여부 |
 | onClose | `() => void` | O | 오버레이 클릭/ESC 시 호출 |
 | children | `ReactNode` | O | 모달 내용 |
+| role | `'dialog' \| 'alertdialog'` | X (기본 `dialog`) | 확인 대화상자(§8.7)는 `alertdialog`를 쓴다 |
+| ariaLabel | `string` | X | 접근 가능한 이름. 화면에 제목이 있으면 `ariaLabelledBy`를 쓴다 |
+| ariaLabelledBy | `string` | X | 제목 요소의 `id` |
 
 **동작**:
 - 오버레이(반투명 배경) + 중앙 정렬 컨테이너 (DESIGN_SYSTEM.md §3 `rounded-xl`, `shadow-lg`)
 - ESC 키 또는 오버레이 바깥 클릭 시 `onClose` 호출
 - 열림/닫힘 전환에 짧은 페이드/스케일 애니메이션 적용 (`transition` 유틸리티 클래스 수준, 별도 애니메이션 라이브러리 도입하지 않음)
 - 열려 있는 동안 `<body>` 스크롤을 잠가 배경 콘텐츠가 함께 스크롤되지 않게 한다
-- `role="dialog"`, `aria-modal="true"`, 오픈 시 내부 첫 포커스 가능 요소로 자동 포커스 이동 (§10 접근성 매핑과 연결)
+- `role="dialog"`, `aria-modal="true"`, 오픈 시 내부 첫 포커스 가능 요소로 자동 포커스 이동 (§10 접근성 매핑과 연결). 포커스 가능 요소가 없으면 모달 자체가 포커스를 받고, 닫히면 열기 전에 포커스가 있던 요소로 돌아간다
+- 모달 안에서 눌러 바깥으로 끌어다 놓는 동작(텍스트 선택 등)은 "바깥 클릭"으로 보지 않는다
+- 모달이 겹쳐 열려 있으면(예: 상세 모달 위의 확인 대화상자) Esc는 **가장 위에 열린 모달만** 닫는다. 배경 스크롤 잠금은 겹쳐 있어도 한 번만 걸고 모두 닫혔을 때 복구한다
+- 포털을 쓰지 않고 `position: fixed` 오버레이를 제자리에서 렌더링한다 (프리뷰 갤러리에서 패널 안에 가둘 수 있도록)
 
 ### 8.6 Badge (공통 primitive)
 
@@ -570,6 +577,8 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | variant | `'low' \| 'medium' \| 'high' \| 'overdue' \| 'neutral'` | O | 색상 변형 |
 | children | `ReactNode` | O | 배지 텍스트 |
 
+그 밖의 HTML 속성(`aria-label`, `role` 등)은 `<span>`에 그대로 전달한다.
+
 **variant → 색상 매핑** (DESIGN_SYSTEM.md §1 토큰 기준):
 | variant | 배경 | 텍스트 | 사용처 |
 |------|------|------|------|
@@ -577,6 +586,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | medium | `priority.medium.bg` (파란색) | `priority.medium.text` | 우선순위 MEDIUM |
 | high | `priority.high.bg` (빨간색) | `priority.high.text` | 우선순위 HIGH |
 | overdue | `status.overdue.bg` | `status.overdue.text` | `OverdueIndicator` 전용 |
+| neutral | `background.sidebar` | `text.secondary` | 중립 표시 (현재 사용처 없음, 향후 확장용) |
 
 **스타일**: 작은 텍스트(`text-xs`) + 둥근 패딩(`rounded-full px-2 py-0.5`, DESIGN_SYSTEM.md §3 라운딩 규칙).
 
@@ -594,7 +604,8 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | danger | `boolean` | X (기본 `false`) | `true`면 확인 버튼을 위험 스타일(`Button variant="danger"`)로 렌더링 |
 
 **동작**:
-- 내부적으로 `Modal`(§8.5)을 감싸 사용한다 (오버레이/ESC/포커스 동작 재사용).
+- 내부적으로 `Modal`(§8.5)을 감싸 사용한다 (오버레이/ESC/포커스 동작 재사용). `alertdialog` 역할은 `Modal`의 `role` prop으로 지정하고, 제목 요소의 `id`를 `ariaLabelledBy`로 연결한다.
+- `onConfirm`이 진행 중이면 확인 버튼은 로딩·비활성이다. `onConfirm`이 reject되면 예외를 삼키고 버튼 로딩만 풀어 다시 누를 수 있게 한다 (오류 표시는 호출부 책임, TC-COMP-010-09).
 - 확인/취소 버튼은 `Button`(§8.8)을 사용하며, `danger=true`(삭제 등 위험 동작)일 때 확인 버튼은 `variant="danger"`로 렌더링한다.
 - `role="alertdialog"`, 확인 버튼에 기본 포커스를 두지 않고 취소 버튼에 기본 포커스를 둔다(실수로 확인을 누르는 것을 방지).
 
@@ -620,6 +631,8 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | ghost | 배경 없는 최소 강조 버튼 | 배경 투명, `text.secondary` |
 
 **로딩 상태**: `isLoading=true`일 때 버튼 내부에 스피너를 표시하고 `disabled` 처리한다. `TicketFormModal`/`TicketModal`의 제출 버튼은 API 호출 중 이 상태를 사용한다 (예: 생성/수정 요청이 진행 중일 때 중복 제출 방지).
+
+그 밖의 `<button>` 속성(`type`, `disabled`, `aria-label` 등)은 그대로 전달한다. `type`의 기본값은 `button`이라 폼 안에서 의도치 않게 제출되지 않는다.
 
 ---
 

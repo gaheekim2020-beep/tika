@@ -1,27 +1,25 @@
 import type { ReactNode } from "react";
+import { phase2Sections } from "./_sections/phase2";
 
 /*
  * 프리뷰 레지스트리 — /preview 갤러리에 보여줄 컴포넌트 목록.
  *
- * Phase 개발이 끝날 때마다 `previewSections`에 항목을 추가한다 (docs/FRONTEND_TASKS.md §1.5).
- * Phase 1(데이터 계층)은 화면이 없어 프리뷰 대상이 아니다.
+ * Phase 개발이 끝날 때마다 해당 Phase 파일(`_sections/phaseN.tsx`)을 만들어 아래 `previewSections`에
+ * 펼쳐 넣는다 (docs/FRONTEND_TASKS.md §1.5). Phase 1(데이터 계층)은 화면이 없어 프리뷰 대상이 아니다.
  *
- * 예시 (Phase 2에서 Button을 만든 뒤):
+ * 항목 예시:
  *
  *   {
  *     id: "button",
  *     phase: "P2",
  *     title: "Button",
  *     spec: "COMPONENT_SPEC §8.8 · TC-COMP-009-04~07",
- *     render: () => (
- *       <div className="flex gap-2">
- *         <Button variant="primary">primary</Button>
- *         <Button variant="secondary">secondary</Button>
- *       </div>
- *     ),
+ *     note: "확인할 점을 한 줄로",
+ *     render: () => <ButtonDemo />,
  *   },
  *
  * 모달·토스트처럼 화면 전체를 덮는 컴포넌트는 `contained: true`로 두면 갤러리 패널 안에 가둔다.
+ * 상태가 필요한 데모(열기/닫기 등)는 `render`가 데모 컴포넌트를 돌려주게 한다.
  */
 
 export const PREVIEW_PHASES = [
@@ -48,4 +46,4 @@ export interface PreviewSectionDef {
   render: () => ReactNode;
 }
 
-export const previewSections: PreviewSectionDef[] = [];
+export const previewSections: PreviewSectionDef[] = [...phase2Sections];
