@@ -167,7 +167,7 @@
   }
 
   .card-title {
-    @apply mb-2 text-[13.5px] leading-snug font-semibold;
+    @apply mb-2 line-clamp-2 text-[13.5px] leading-snug font-semibold;
   }
 
   /* 설명은 있을 때만 제목 아래에 최대 2줄까지 표시한다 (와이어프레임 기준) */
