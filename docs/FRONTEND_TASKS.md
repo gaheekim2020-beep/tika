@@ -493,60 +493,60 @@ graph LR
 
 선행 `Button`, `@/shared/validations`의 `createTicketSchema`/`updateTicketSchema` · 클래스 `.form-field`, `.form-label`, `.form-control`, `.form-error`, `.form-row`
 
-- [ ] Red: TC-COMP-007-05 — `ticket`이 있으면 제목·설명·우선순위·시작예정일·종료예정일에 기존 값이 채워진다
-- [ ] Red: TC-COMP-006-01 — `ticket`이 없으면(D5) 필드가 비어 있고 우선순위는 MEDIUM이 선택돼 있다
-- [ ] Red(타입): `ticket` 유무에 따라 `onSubmit` 시그니처가 갈리는 판별 유니온 Props — 있으면 `UpdateTicketInput`, 없으면 `CreateTicketInput` (`npx tsc --noEmit`으로 검증, D5)
-- [ ] Red: 생성 모드에서 비운 설명·날짜는 본문에서 생략되고, 수정 모드에서는 `null`로 전달된다 (API_SPEC §1·§4)
-- [ ] Red: TC-COMP-006-06 / 007-08 — 제목을 비우고 제출하면 `onSubmit`이 호출되지 않고 제목 아래에 "제목을 입력해주세요"가 보인다
-- [ ] Red: TC-COMP-006-07 / 007-09 — 과거 종료예정일이면 해당 입력창 아래에 "종료예정일은 오늘 이후 날짜를 선택해주세요"가 보인다. 날짜 입력에는 `min`(오늘)이 설정된다
-- [ ] Red: `errors` prop(`{ title: "..." }`)이 전달되면 해당 필드 아래에 메시지가 보이고 `aria-invalid`, `aria-describedby`로 연결된다 (서버 400과 클라이언트 검증을 같은 방식으로 표시, §6.2)
-- [ ] Red: 유효한 입력이면 `onSubmit`이 입력값으로 호출된다 (공백만 있는 제목은 거절)
-- [ ] Red: 하단에 "취소"와 제출 버튼이 있고(생성 모드 "생성" / 수정 모드 "저장"), "취소"를 누르면 `onCancel`이 호출되고 `onSubmit`은 호출되지 않는다 (`onCancel` prop 추가, 2026-10-08)
-- [ ] Red: 수정 모드에서 이미 지난 종료예정일을 **바꾸지 않으면** 검증 오류 없이 제출된다 (바꾼 값이 과거면 오류)
-- [ ] Red: TC-COMP-006-09 — 제출 Promise가 진행되는 동안 제출 버튼이 스피너·비활성이라 중복 제출되지 않고, 끝나면 복구된다
-- [ ] 구현 메모: 검증은 `@/shared/validations` 스키마를 import해 재사용(메시지 문구 동일), `src/server`는 import하지 않는다, 변경된 필드만 추려내는 `getChangedFields(original, values)`는 `boardUtils` 옆 순수 함수로 두고 `TicketModal`에서 PATCH 본문 생성에 사용
+- [X] Red: TC-COMP-007-05 — `ticket`이 있으면 제목·설명·우선순위·시작예정일·종료예정일에 기존 값이 채워진다
+- [X] Red: TC-COMP-006-01 — `ticket`이 없으면(D5) 필드가 비어 있고 우선순위는 MEDIUM이 선택돼 있다
+- [X] Red(타입): `ticket` 유무에 따라 `onSubmit` 시그니처가 갈리는 판별 유니온 Props — 있으면 `UpdateTicketInput`, 없으면 `CreateTicketInput` (`npx tsc --noEmit`으로 검증, D5)
+- [X] Red: 생성 모드에서 비운 설명·날짜는 본문에서 생략되고, 수정 모드에서는 `null`로 전달된다 (API_SPEC §1·§4)
+- [X] Red: TC-COMP-006-06 / 007-08 — 제목을 비우고 제출하면 `onSubmit`이 호출되지 않고 제목 아래에 "제목을 입력해주세요"가 보인다
+- [X] Red: TC-COMP-006-07 / 007-09 — 과거 종료예정일이면 해당 입력창 아래에 "종료예정일은 오늘 이후 날짜를 선택해주세요"가 보인다. 날짜 입력에는 `min`(오늘)이 설정된다
+- [X] Red: `errors` prop(`{ title: "..." }`)이 전달되면 해당 필드 아래에 메시지가 보이고 `aria-invalid`, `aria-describedby`로 연결된다 (서버 400과 클라이언트 검증을 같은 방식으로 표시, §6.2)
+- [X] Red: 유효한 입력이면 `onSubmit`이 입력값으로 호출된다 (공백만 있는 제목은 거절)
+- [X] Red: 하단에 "취소"와 제출 버튼이 있고(생성 모드 "생성" / 수정 모드 "저장"), "취소"를 누르면 `onCancel`이 호출되고 `onSubmit`은 호출되지 않는다 (`onCancel` prop 추가, 2026-10-08)
+- [X] Red: 수정 모드에서 이미 지난 종료예정일을 **바꾸지 않으면** 검증 오류 없이 제출된다 (바꾼 값이 과거면 오류)
+- [X] Red: TC-COMP-006-09 — 제출 Promise가 진행되는 동안 제출 버튼이 스피너·비활성이라 중복 제출되지 않고, 끝나면 복구된다
+- [X] 구현 메모: 검증은 `@/shared/validations` 스키마를 import해 재사용(메시지 문구 동일), `src/server`는 import하지 않는다, 변경된 필드만 추려내는 `getChangedFields(original, values)`는 `src/client/lib/getChangedFields.ts`의 순수 함수로 두고 `TicketModal`에서 PATCH 본문 생성에 사용 (테스트 `__tests__/lib/getChangedFields.test.ts`)
 
 #### P5-2. `TicketDetailView` (§6.2)
 
-- [ ] Red: TC-COMP-007-03 일부 — 상태, 시작일, 종료일, 생성일이 보인다
-- [ ] Red: TC-COMP-007-04 — 모두 입력창이 아닌 일반 텍스트다 (`textbox` 역할 없음)
-- [ ] Red: 값이 `null`인 `startedAt`/`completedAt`은 "—"로 보인다
-- [ ] Red: 상태는 `Badge`가 아닌 텍스트로 표시한다 (§6.2)
-- [ ] 구현 메모: 클래스 `.detail-list`, `.detail-row`, `.detail-label`, `.detail-value`
+- [X] Red: TC-COMP-007-03 일부 — 상태, 시작일, 종료일, 생성일이 보인다
+- [X] Red: TC-COMP-007-04 — 모두 입력창이 아닌 일반 텍스트다 (`textbox` 역할 없음)
+- [X] Red: 값이 `null`인 `startedAt`/`completedAt`은 "—"로 보인다
+- [X] Red: 상태는 `Badge`가 아닌 텍스트로 표시한다 (§6.2)
+- [X] 구현 메모: 클래스 `.detail-list`, `.detail-row`, `.detail-label`, `.detail-value`
 
 #### P5-3. `DeleteButton` (§6.3)
 
-- [ ] Red: TC-COMP-008-01 — "삭제" 버튼이 danger variant로 보이고 클릭 시 `onClick` 호출
+- [X] Red: TC-COMP-008-01 — "삭제" 버튼이 danger variant로 보이고 클릭 시 `onClick` 호출
 
 #### P5-4. `TicketFormModal` (§6.1)
 
 선행 `Modal`, `TicketForm`, `Button`, `ErrorToast`
 
-- [ ] Red: TC-COMP-006-01/02 — 열면 빈 폼(우선순위 MEDIUM)이 보이고 **제목에 포커스**가 있다
-- [ ] Red: TC-COMP-006-03 — 제목만 입력하고 "생성"을 누르면 `onSubmit`이 `{ title, priority: "MEDIUM" }`으로 호출되고 성공 시 모달이 닫힌다 (`onClose`)
-- [ ] Red: TC-COMP-006-04 — 모든 필드를 채우면 `onSubmit`이 모든 필드로 호출된다
-- [ ] Red: TC-COMP-006-05 — "취소" 또는 오버레이 바깥 클릭이면 `onSubmit` 없이 `onClose`
-- [ ] Red: TC-COMP-006-06/07 — 클라이언트 검증 실패 시 모달이 유지되고 필드 아래 오류가 보인다
-- [ ] Red: 서버 400에서 `ApiError.field`가 있으면 해당 필드 아래에 메시지가 보이고 모달이 유지된다 (D3)
-- [ ] Red: TC-COMP-006-08 — `field`가 없는 오류는 폼 상단(또는 토스트)에 메시지가 보이고 모달이 유지된다
-- [ ] Red: TC-COMP-006-09 — 제출 중 "생성" 버튼이 비활성 + 스피너
+- [X] Red: TC-COMP-006-01/02 — 열면 빈 폼(우선순위 MEDIUM)이 보이고 **제목에 포커스**가 있다
+- [X] Red: TC-COMP-006-03 — 제목만 입력하고 "생성"을 누르면 `onSubmit`이 `{ title, priority: "MEDIUM" }`으로 호출되고 성공 시 모달이 닫힌다 (`onClose`)
+- [X] Red: TC-COMP-006-04 — 모든 필드를 채우면 `onSubmit`이 모든 필드로 호출된다
+- [X] Red: TC-COMP-006-05 — "취소" 또는 오버레이 바깥 클릭이면 `onSubmit` 없이 `onClose`
+- [X] Red: TC-COMP-006-06/07 — 클라이언트 검증 실패 시 모달이 유지되고 필드 아래 오류가 보인다
+- [X] Red: 서버 400에서 `ApiError.field`가 있으면 해당 필드 아래에 메시지가 보이고 모달이 유지된다 (D3)
+- [X] Red: TC-COMP-006-08 — `field`가 없는 오류는 폼 상단(또는 토스트)에 메시지가 보이고 모달이 유지된다
+- [X] Red: TC-COMP-006-09 — 제출 중 "생성" 버튼이 비활성 + 스피너
 
 #### P5-5. `TicketModal` (§6.2, §6.3, 결정 D3·D4)
 
 선행 `Modal`, `ConfirmDialog`, `TicketForm`, `TicketDetailView`, `DeleteButton`, `ErrorToast` · 데이터는 props로만 받는다 (`useTicket` 호출은 P6 `BoardContainer`, 2026-10-08 결정)
 
-- [ ] Red: TC-COMP-007-01 — `isLoading=true`이면 모달은 열려 있고 스켈레톤이 보인다 (폼·삭제 버튼 없음)
-- [ ] Red: TC-COMP-007-02/03 — `ticket`이 주어지고 `isLoading=false`이면 스켈레톤이 없고 상세 정보와 폼이 보인다
-- [ ] Red: TC-COMP-007-12 — `error`가 있고 `ticket=null`이면 모달 안에 오류 메시지가 보이고 **폼과 삭제 버튼은 없다**
-- [ ] Red: TC-COMP-007-06/07 — 변경한 필드만 담아 `onSubmit(ticket.id, 변경분)`이 호출되고 성공 시 `onClose`가 호출된다
-- [ ] Red: TC-COMP-007-08/09 — 제목 비움·과거 날짜 검증 실패 시 모달 유지 + 필드 오류
-- [ ] Red: TC-COMP-007-10 — 저장 실패 시 모달이 유지되고 오류 토스트가 보인다
-- [ ] Red: TC-COMP-007-11 — Esc로 닫으면 `onSubmit` 없이 `onClose`
-- [ ] Red: TC-COMP-008-02/03 — "삭제" 클릭 → "정말 삭제하시겠습니까?" 다이얼로그, 취소에 포커스
-- [ ] Red: TC-COMP-008-04 — 확인 → `onDelete(id)` 호출, 성공 시 두 모달 모두 닫힘
-- [ ] Red: TC-COMP-008-05 — 취소 → 확인 다이얼로그만 닫히고 상세 모달은 유지
-- [ ] Red: TC-COMP-008-06 — 삭제 실패 시 두 모달 유지 + 오류 토스트
-- [ ] 구현 메모: 모달 열림 상태·`ticketId`는 `BoardContainer`가 소유(§10), 이 컴포넌트는 props로만 제어
+- [X] Red: TC-COMP-007-01 — `isLoading=true`이면 모달은 열려 있고 스켈레톤이 보인다 (폼·삭제 버튼 없음)
+- [X] Red: TC-COMP-007-02/03 — `ticket`이 주어지고 `isLoading=false`이면 스켈레톤이 없고 상세 정보와 폼이 보인다
+- [X] Red: TC-COMP-007-12 — `error`가 있고 `ticket=null`이면 모달 안에 오류 메시지가 보이고 **폼과 삭제 버튼은 없다**
+- [X] Red: TC-COMP-007-06/07 — 변경한 필드만 담아 `onSubmit(ticket.id, 변경분)`이 호출되고 성공 시 `onClose`가 호출된다
+- [X] Red: TC-COMP-007-08/09 — 제목 비움·과거 날짜 검증 실패 시 모달 유지 + 필드 오류
+- [X] Red: TC-COMP-007-10 — 저장 실패 시 모달이 유지되고 오류 토스트가 보인다
+- [X] Red: TC-COMP-007-11 — Esc로 닫으면 `onSubmit` 없이 `onClose`
+- [X] Red: TC-COMP-008-02/03 — "삭제" 클릭 → "정말 삭제하시겠습니까?" 다이얼로그, 취소에 포커스
+- [X] Red: TC-COMP-008-04 — 확인 → `onDelete(id)` 호출, 성공 시 두 모달 모두 닫힘
+- [X] Red: TC-COMP-008-05 — 취소 → 확인 다이얼로그만 닫히고 상세 모달은 유지
+- [X] Red: TC-COMP-008-06 — 삭제 실패 시 두 모달 유지 + 오류 토스트
+- [X] 구현 메모: 모달 열림 상태·`ticketId`는 `BoardContainer`가 소유(§10), 이 컴포넌트는 props로만 제어
 
 **Phase 5 완료 기준**: TC-COMP-006-01~09, 007-01~12, 008-01~06 통과.
 
