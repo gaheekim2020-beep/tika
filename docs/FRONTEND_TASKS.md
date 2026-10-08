@@ -162,7 +162,7 @@ graph LR
   TicketDetailView --> TicketModal
   DeleteButton --> TicketModal
   ConfirmDialog --> TicketModal
-  useTicket --> TicketModal
+  useTicket --> BoardContainer
 
   %% P6 컨테이너
   Button --> BoardHeader
@@ -202,9 +202,9 @@ graph LR
 | 20 | `TicketDetailView` | P5 | - | §6.2 |
 | 21 | `DeleteButton` | P5 | 5 | §6.3 |
 | 22 | `TicketFormModal` | P5 | 5, 9, 14, 19 | §6.1 |
-| 23 | `TicketModal` | P5 | 4, 9, 10, 14, 19, 20, 21 | §6.2 |
+| 23 | `TicketModal` | P5 | 9, 10, 14, 19, 20, 21 | §6.2 |
 | 24 | `BoardHeader` | P6 | 5 | §3.3 |
-| 25 | `BoardContainer` | P6 | 3, 12, 13, 18, 22, 23, 24 | §3.2 |
+| 25 | `BoardContainer` | P6 | 3, 4, 12, 13, 18, 22, 23, 24 | §3.2 |
 | 26 | `app/page.tsx` | P6 | 25 | §3.1 |
 
 ### 2.3 병렬로 진행할 수 있는 묶음
@@ -226,7 +226,7 @@ graph LR
 | D1 ✅ | `useTickets`에 **다시 불러오기(`refetch`) 액션이 없다**. 그런데 TC-COMP-004-04는 "재시도 클릭 시 보드 화면으로 전환"을 요구한다. | §3.5 인터페이스, TC-COMP-004-04 | **결정·문서 반영 완료(2026-10-02).** `refetch: () => Promise<void>` 추가하고 §3.5 표에 `GET /api/tickets`로 명시 | P1 |
 | D2 ✅ | **초기 데이터를 어디서 가져오는가.** §3.1은 서버 컴포넌트가 페칭하지 않는다고 하고, §3.2는 로딩 스켈레톤을 요구하며, §3.5는 `useTickets(initialData)`를 정의한다. | §3.1, §3.2, §3.5 | **결정·문서 반영 완료(2026-10-02).** 마운트 시 클라이언트에서 `GET /api/tickets`를 호출해 `isLoading`을 관리한다. 시그니처는 `useTickets(initialData?: BoardData)`로, 값이 없으면 최초 조회를 수행하고 있으면 건너뛴다 (테스트 주입·향후 SSR 대비) | P1 |
 | D3 ✅ | 액션이 실패할 때 **Promise를 reject하는가**, 필드 오류(`error.field`)를 어떻게 전달하는가. 모달이 "실패 시 유지"되려면 호출부가 실패를 알아야 한다. | TC-COMP-006-06/08, 007-10, 008-06 | **결정·문서 반영 완료(2026-10-02).** `create`/`update`/`remove`는 **`ApiError`로 reject**한다. `error.field`가 있는 400은 폼 필드에 인라인으로만 표시하고(`error` 상태 미설정), 그 외 실패는 `error`를 채워 `ErrorToast`로 표시한다. `reorder`/`complete`는 조용히 롤백하고 reject하지 않는다. `clearError()` 추가 | P1 |
-| D4 ✅ | `TicketModal`의 **상세 조회(`GET /api/tickets/:id`)를 누가 하는가.** 컴포넌트가 직접 호출하면 §3.5("API 호출·롤백 책임은 훅")와 어긋나고, `useTickets` 액션 표에는 조회가 없다. | §3.5, §6.2 | **결정·문서 반영 완료(2026-10-02).** 훅 `useTicket(ticketId)`(조회·로딩·에러)를 `src/client/hooks/`에 신설하고 §3.5·§6.2에 명시 | P1 |
+| D4 ✅ | `TicketModal`의 **상세 조회(`GET /api/tickets/:id`)를 누가 하는가.** 컴포넌트가 직접 호출하면 §3.5("API 호출·롤백 책임은 훅")와 어긋나고, `useTickets` 액션 표에는 조회가 없다. | §3.5, §6.2 | **결정·문서 반영 완료(2026-10-02).** 훅 `useTicket(ticketId)`(조회·로딩·에러)를 `src/client/hooks/`에 신설하고 §3.5·§6.2에 명시. **2026-10-08 갱신: 호출 주체를 `TicketModal`에서 `BoardContainer`로 변경**하고 `TicketModal`은 `ticket`/`isLoading`/`error`를 props로 받는 표시 컴포넌트로 만들었다 (화면 먼저 개발하고 나중에 조립하기 위함) | P1 |
 | D5 ✅ | `TicketForm`의 `ticket` prop이 **필수**인데 생성 모달(§6.1)도 이 폼을 쓴다. | §6.1, §6.2 | **결정·문서 반영 완료(2026-10-02).** `ticket?: TicketWithMeta`(선택)로 바꾸고 없으면 생성 모드(빈 초기값 + 우선순위 MEDIUM). `ticket` 유무로 `onSubmit` 시그니처가 갈리는 판별 유니온 Props로 정의 | P5 |
 | D6 ✅ | **카드의 Enter/Space와 dnd-kit 키보드 조작이 충돌**한다. TC-COMP-001-09는 Enter/Space로 모달을 열고, TC-COMP-003-07은 Space로 픽업한다. dnd-kit `KeyboardSensor`의 기본 시작 키는 Space와 Enter 둘 다이다. | TC-COMP-001-09, 003-07, TRD §1.5 | **결정·문서 반영 완료(2026-10-02).** `KeyboardSensor`의 `keyboardCodes.start`를 `["Space"]`로 제한하고, 카드는 **Enter만** 모달을 연다. TC-COMP-001-09와 §5.1·§11을 "Enter"로 수정 (TRD §1.5의 "커스텀 키 매핑 없음" 문구도 함께 보정) | P3 |
 | D7 ✅ | **카드에 설명을 표시하는가.** §5.1 표시 요소에는 설명이 없지만 TC-COMP-001-12("설명이 없는 카드… 설명 텍스트 영역 없이")와 와이어프레임은 설명이 있는 카드를 전제한다. | §5.1, TC-COMP-001-12, tika-wireframe.png | **결정·문서 반영 완료(2026-10-02).** 와이어프레임 기준으로 **설명을 최대 2줄 말줄임으로 표시**하고 §5.1에 추가 (TC-COMP-001-13~14 신설, `.card-desc` 스타일 추가) | P3 |
@@ -531,12 +531,12 @@ graph LR
 
 #### P5-5. `TicketModal` (§6.2, §6.3, 결정 D3·D4)
 
-선행 `useTicket`, `Modal`, `ConfirmDialog`, `TicketForm`, `TicketDetailView`, `DeleteButton`, `ErrorToast`
+선행 `Modal`, `ConfirmDialog`, `TicketForm`, `TicketDetailView`, `DeleteButton`, `ErrorToast` · 데이터는 props로만 받는다 (`useTicket` 호출은 P6 `BoardContainer`, 2026-10-08 결정)
 
-- [ ] Red: TC-COMP-007-01 — 열면 모달이 즉시 보이고 조회 중에는 스켈레톤이 보인다 (폼·삭제 버튼 없음)
-- [ ] Red: TC-COMP-007-02/03 — 조회 완료 후 스켈레톤이 사라지고 상세 정보와 폼이 보인다
-- [ ] Red: TC-COMP-007-12 — 조회 실패(404/500)면 모달 안에 오류 메시지가 보이고 **폼과 삭제 버튼은 없다**
-- [ ] Red: TC-COMP-007-06/07 — 변경한 필드만 담아 `onSubmit(id, 변경분)`이 호출되고 성공 시 모달이 닫힌다
+- [ ] Red: TC-COMP-007-01 — `isLoading=true`이면 모달은 열려 있고 스켈레톤이 보인다 (폼·삭제 버튼 없음)
+- [ ] Red: TC-COMP-007-02/03 — `ticket`이 주어지고 `isLoading=false`이면 스켈레톤이 없고 상세 정보와 폼이 보인다
+- [ ] Red: TC-COMP-007-12 — `error`가 있고 `ticket=null`이면 모달 안에 오류 메시지가 보이고 **폼과 삭제 버튼은 없다**
+- [ ] Red: TC-COMP-007-06/07 — 변경한 필드만 담아 `onSubmit(ticket.id, 변경분)`이 호출되고 성공 시 `onClose`가 호출된다
 - [ ] Red: TC-COMP-007-08/09 — 제목 비움·과거 날짜 검증 실패 시 모달 유지 + 필드 오류
 - [ ] Red: TC-COMP-007-10 — 저장 실패 시 모달이 유지되고 오류 토스트가 보인다
 - [ ] Red: TC-COMP-007-11 — Esc로 닫으면 `onSubmit` 없이 `onClose`
@@ -564,14 +564,14 @@ graph LR
 
 #### P6-2. `BoardContainer` (`"use client"`) (§3.2, §10)
 
-선행 `useTickets`, `Board`, `BoardHeader`, `TicketFormModal`, `TicketModal`, `BoardSkeleton`, `ErrorBanner`
+선행 `useTickets`, `useTicket`, `Board`, `BoardHeader`, `TicketFormModal`, `TicketModal`, `BoardSkeleton`, `ErrorBanner`
 
 - [ ] Red: TC-COMP-004-02 — 로딩 중에는 `BoardSkeleton`이 보인다
 - [ ] Red: TC-COMP-004-01 — 로딩이 끝나면 스켈레톤이 사라지고 4개 칼럼과 카드가 보인다
 - [ ] Red: TC-COMP-004-03 — 초기 조회 실패 시 칼럼 대신 오류 메시지와 "재시도" 버튼이 보인다
 - [ ] Red: TC-COMP-004-04 — "재시도" 클릭 후 성공하면 보드 화면으로 전환된다 (D1의 `refetch`)
 - [ ] Red: "새 업무" 클릭 → 생성 모달이 열리고, 제출 성공 시 닫히며 BACKLOG 맨 위에 카드가 보인다 (TC-COMP-005-02, 006-03)
-- [ ] Red: 카드 클릭 → `TicketModal`이 해당 `ticketId`로 열린다 (TC-COMP-001-08)
+- [ ] Red: 카드 클릭 → 선택된 `ticketId`로 `useTicket`을 호출하고, 그 결과(`ticket`/`isLoading`/`error`)를 `TicketModal`에 props로 전달해 연다 (TC-COMP-001-08, 007-01~03, 007-12)
 - [ ] Red: 드롭 콜백이 `useTickets.reorder` / `complete`로 연결된다 (`Board`의 `onReorder`/`onComplete`)
 - [ ] Red: 삭제 성공 시 두 모달이 닫히고 카드가 사라진다 (TC-COMP-008-04)
 - [ ] 구현 메모: 모달 열림·선택된 `ticketId` 같은 **UI 상태만** 이 컴포넌트가 소유하고, DnD 로직은 갖지 않는다 (§1.1, §10)
