@@ -10,7 +10,7 @@ describe("ColumnHeader (§4.2)", () => {
   });
 
   // TC-COMP-002-01 일부
-  it("count가 숫자로 보인다", () => {
+  it("count 값이 화면에 표시된다", () => {
     render(<ColumnHeader label="TODO" count={3} />);
 
     expect(screen.getByText("3")).toBeInTheDocument();
