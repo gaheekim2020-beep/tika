@@ -44,3 +44,6 @@ next-env.d.ts
 # personal scratch notes (not shared docs)
 docs/Check.md
 docs/history.md
+
+# Claude Code personal settings
+.claude/settings.local.json
