@@ -23,6 +23,7 @@ describe("Modal (§8.5)", () => {
     expect(overlayOf(container)).toBeNull();
   });
 
+  // TC-COMP-009-12
   it("isOpen=true이면 role=dialog, aria-modal=true로 children이 보인다", () => {
     render(
       <Modal isOpen onClose={jest.fn()}>
@@ -35,6 +36,7 @@ describe("Modal (§8.5)", () => {
     expect(dialog).toHaveTextContent("모달 내용");
   });
 
+  // TC-COMP-009-12
   it("role=alertdialog와 aria-labelledby로 접근 가능한 이름을 줄 수 있다", () => {
     render(
       <Modal isOpen onClose={jest.fn()} role="alertdialog" ariaLabelledBy="title">
@@ -46,6 +48,7 @@ describe("Modal (§8.5)", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
+  // TC-COMP-009-12
   it("ariaLabel로 접근 가능한 이름을 줄 수 있다", () => {
     render(
       <Modal isOpen onClose={jest.fn()} ariaLabel="새 업무 만들기">
@@ -87,6 +90,7 @@ describe("Modal (§8.5)", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  // TC-COMP-009-09
   it("모달 안에서 눌러 바깥으로 끌어다 놓아도(텍스트 선택 등) 닫히지 않는다", () => {
     const onClose = jest.fn();
     const { container } = render(
@@ -116,6 +120,7 @@ describe("Modal (§8.5)", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  // TC-COMP-009-08
   it("닫혀 있을 때는 Esc에 반응하지 않는다", async () => {
     const user = userEvent.setup();
     const onClose = jest.fn();
@@ -187,6 +192,7 @@ describe("Modal (§8.5)", () => {
       expect(document.body.style.overflow).toBe("");
     });
 
+    // TC-COMP-009-13
     it("모달이 둘 열려 있을 때 하나를 닫아도 잠금은 유지되고 모두 닫으면 복구된다", () => {
       document.body.style.overflow = "scroll";
       const Two = ({ first, second }: { first: boolean; second: boolean }) => (
