@@ -47,6 +47,12 @@ describe("프리뷰 섹션 렌더링", () => {
     expect(ids).toEqual(["column-header", "ticket-card", "column"]);
   });
 
+  it("Phase 4 컴포넌트 1개가 등록돼 있다", () => {
+    const ids = previewSections.filter((section) => section.phase === "P4").map((section) => section.id);
+
+    expect(ids).toEqual(["board"]);
+  });
+
   it("Phase 5 컴포넌트 5개가 모두 등록돼 있다", () => {
     const ids = previewSections.filter((section) => section.phase === "P5").map((section) => section.id);
 

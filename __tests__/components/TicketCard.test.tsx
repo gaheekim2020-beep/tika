@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { TicketCard } from "@/client/components/TicketCard";
+import { TicketCard, TicketCardOverlay } from "@/client/components/TicketCard";
 import { makeTicket } from "../helpers/fixtures";
+import { renderWithDnd } from "../helpers/renderWithDnd";
 
 describe("TicketCard (§5.1)", () => {
   // TC-COMP-001-01
@@ -147,5 +148,42 @@ describe("TicketCard (§5.1)", () => {
     });
 
     expect(variants).toEqual(["badge badge--low", "badge badge--medium", "badge badge--high"]);
+  });
+});
+
+describe("TicketCard — dnd-kit 연결 (P4)", () => {
+  it("DndContext 안에서도 role=button, tabIndex=0과 접근 가능한 이름을 유지한다", () => {
+    renderWithDnd(<TicketCard ticket={makeTicket({ id: 7, title: "결제 연동", priority: "LOW" })} onClick={jest.fn()} />, [7]);
+
+    const card = screen.getByRole("button", { name: "결제 연동, 우선순위 LOW" });
+    expect(card).toHaveAttribute("tabindex", "0");
+  });
+});
+
+describe("TicketCardOverlay (DragOverlay 미리보기)", () => {
+  it("카드와 같은 내용을 .card--overlay로 보여 준다", () => {
+    const { container } = render(
+      <TicketCardOverlay ticket={makeTicket({ title: "미리보기", priority: "HIGH", dueDate: "2026-10-20" })} />
+    );
+
+    const overlay = container.querySelector(".card");
+    expect(overlay).toHaveClass("card--overlay");
+    expect(screen.getByText("미리보기")).toBeInTheDocument();
+    expect(screen.getByText("HIGH")).toBeInTheDocument();
+    expect(screen.getByText("종료예정 10-20")).toBeInTheDocument();
+  });
+
+  it("원본과 같은 id를 dnd에 등록하지 않으므로 포커스·버튼 역할을 갖지 않는다", () => {
+    render(<TicketCardOverlay ticket={makeTicket()} />);
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("지연·DONE 상태 클래스도 원본과 같이 적용된다", () => {
+    const { container, rerender } = render(<TicketCardOverlay ticket={makeTicket({ isOverdue: true })} />);
+    expect(container.querySelector(".card")).toHaveClass("card--overdue");
+
+    rerender(<TicketCardOverlay ticket={makeTicket({ status: "DONE" })} />);
+    expect(container.querySelector(".card")).toHaveClass("card--done");
   });
 });

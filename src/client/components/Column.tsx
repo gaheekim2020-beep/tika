@@ -1,4 +1,7 @@
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { COLUMN_LABELS, TICKET_STATUS, type TicketStatus, type TicketWithMeta } from "@/shared/types";
+import { columnDropId } from "@/client/lib/boardUtils";
 import { ColumnHeader } from "./ColumnHeader";
 import { EmptyColumnState } from "./EmptyColumnState";
 import { TicketCard } from "./TicketCard";
@@ -8,23 +11,28 @@ type ColumnProps = {
   /** 해당 상태의 티켓 목록 (position 오름차순) */
   tickets: TicketWithMeta[];
   onTicketClick: (ticket: TicketWithMeta) => void;
+  /** 드래그 중인 카드가 이 칼럼 위에 있으면 강조한다 (Board가 onDragOver로 판단해 내려 준다) */
+  isOver?: boolean;
 };
 
-// dnd-kit 연결(droppable, SortableContext)은 Board를 만드는 P4에서 추가한다
-export const Column = ({ status, tickets, onTicketClick }: ColumnProps) => {
+export const Column = ({ status, tickets, onTicketClick, isOver = false }: ColumnProps) => {
+  const { setNodeRef } = useDroppable({ id: columnDropId(status) });
   const isBacklog = status === TICKET_STATUS.BACKLOG;
   const label = COLUMN_LABELS[status];
+  const className = ["column", isBacklog && "column--backlog", isOver && "column--over"].filter(Boolean).join(" ");
 
   return (
-    <section aria-label={`${label} 칼럼`} className={isBacklog ? "column column--backlog" : "column"}>
+    <section ref={setNodeRef} aria-label={`${label} 칼럼`} className={className}>
       <ColumnHeader label={label} count={tickets.length} showCount={!isBacklog} />
-      <div className="card-list">
-        {tickets.length === 0 ? (
-          <EmptyColumnState label="아직 카드가 없어요" />
-        ) : (
-          tickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} onClick={onTicketClick} />)
-        )}
-      </div>
+      <SortableContext items={tickets.map((ticket) => ticket.id)} strategy={verticalListSortingStrategy}>
+        <div className="card-list">
+          {tickets.length === 0 ? (
+            <EmptyColumnState label="아직 카드가 없어요" />
+          ) : (
+            tickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} onClick={onTicketClick} />)
+          )}
+        </div>
+      </SortableContext>
       {status === TICKET_STATUS.DONE && <p className="column-note">24시간 지난 완료 항목은 표시되지 않아요</p>}
     </section>
   );

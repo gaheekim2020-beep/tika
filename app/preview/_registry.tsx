@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { phase2Sections } from "./_sections/phase2";
 import { phase3Sections } from "./_sections/phase3";
+import { phase4Sections } from "./_sections/phase4";
 import { phase5Sections } from "./_sections/phase5";
 
 /*
@@ -48,4 +49,4 @@ export interface PreviewSectionDef {
   render: () => ReactNode;
 }
 
-export const previewSections: PreviewSectionDef[] = [...phase2Sections, ...phase3Sections, ...phase5Sections];
+export const previewSections: PreviewSectionDef[] = [...phase2Sections, ...phase3Sections, ...phase4Sections, ...phase5Sections];
