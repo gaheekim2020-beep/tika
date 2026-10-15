@@ -251,7 +251,7 @@ function useTickets(initialData?: BoardData): UseTicketsReturn;
 
 **파일**: `src/client/hooks/useTicket.ts`
 
-`TicketModal`(§6.2)이 오픈 시 `GET /api/tickets/:id`로 최신 단건 데이터를 조회하는 데 쓴다. 보드 전체를 소유하는 `useTickets`와 달리 모달이 열려 있는 동안에만 의미 있는 상태(로딩·에러·요청 경쟁)를 다루므로 별도 훅으로 둔다. 컴포넌트가 `ticketApi`를 직접 호출하지 않는다는 원칙(TRD.md §4)을 지키기 위함이다.
+`BoardContainer`(§3.2)가 `TicketModal`(§6.2)을 열 때 `GET /api/tickets/:id`로 최신 단건 데이터를 조회하는 데 쓴다 (결과는 `TicketModal`에 props로 전달하며, `TicketModal`은 이 훅을 직접 호출하지 않는다). 보드 전체를 소유하는 `useTickets`와 달리 모달이 열려 있는 동안에만 의미 있는 상태(로딩·에러·요청 경쟁)를 다루므로 별도 훅으로 둔다. 컴포넌트가 `ticketApi`를 직접 호출하지 않는다는 원칙(TRD.md §4)을 지키기 위함이다.
 
 ```typescript
 interface UseTicketReturn {
@@ -317,7 +317,7 @@ BoardHeader("새 업무" 클릭, §3.3)
 **티켓 수정 (FR-003, FR-004, US-007)**
 ```
 TicketCard(클릭, §5.1)
-  → TicketModal 오픈, GET /api/tickets/:id로 조회 (§6.2)
+  → BoardContainer가 선택된 ticketId로 useTicket 호출(GET /api/tickets/:id) → TicketModal 오픈, 조회 결과를 props로 전달 (§6.2)
   → TicketForm 편집 모드 (§6.2)
   → Zod 클라이언트 검증 (NFR-004)
   → useTickets.update(id, input)
@@ -447,13 +447,15 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 | Prop | 타입 | 필수 | 설명 |
 |------|------|------|------|
 | isOpen | `boolean` | O | 모달 표시 여부 |
-| ticketId | `number \| null` | O | 조회할 티켓 ID (`GET /api/tickets/:id`) |
+| ticket | `TicketWithMeta \| null` | O | 조회된 티켓. 조회 중이거나 실패하면 `null` (`BoardContainer`가 `useTicket`으로 조회해 전달) |
+| isLoading | `boolean` | O | 상세 조회 중 여부. `true`이면 스켈레톤을 표시한다 |
+| error | `string \| null` | O | 상세 조회 실패 메시지. 있으면 모달 안에 표시한다 |
 | onClose | `() => void` | O | 닫기 핸들러 |
 | onSubmit | `(id: number, input: UpdateTicketInput) => Promise<void>` | O | 저장 시 `PATCH /api/tickets/:id` 호출 |
 | onDelete | `(id: number) => Promise<void>` | O | 삭제 확정 시 `DELETE /api/tickets/:id` 호출 |
 
 **동작**:
-- 오픈 시 `GET /api/tickets/:id`로 최신 데이터 조회 (`useTicket`, §3.5)
+- **설계 변경(2026-10-08)**: 이 컴포넌트는 데이터를 조회하지 않는다. `BoardContainer`가 선택된 `ticketId`로 `useTicket`(§3.5)을 호출해 얻은 `ticket`/`isLoading`/`error`를 props로 받아 표시만 한다. 화면 컴포넌트를 API·훅과 분리해 따로 개발하고 `BoardContainer`에서 조립하기 위함이다. `onSubmit`/`onDelete`에 넘기는 id는 `ticket.id`다.
 - 조회 중(응답 전)에는 모달 자체를 열어둔 채로 `TicketDetailView`/`TicketForm` 자리에 간단한 스켈레톤(§8.1 `BoardSkeleton`과 동일한 패턴)을 표시한다. 응답이 오면 실제 내용으로 교체한다 — 카드 클릭 직후 아무 반응이 없어 보이는 공백을 방지하기 위함이다.
 - 조회 자체가 실패(404/500)하면 스켈레톤 대신 에러 메시지를 모달 내부에 표시하고, `TicketForm`/`DeleteButton`은 렌더링하지 않는다 (수정/삭제 대상 데이터가 없으므로).
 - 저장 시 변경된 필드만 `PATCH` 요청 (Partial Update)
@@ -488,6 +490,7 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 | ticket | `TicketWithMeta` | X | 초기값으로 사용할 티켓 데이터. 없으면 생성 모드(빈 값, 우선순위 MEDIUM) |
 | onSubmit | `(input: UpdateTicketInput) => Promise<void>` (수정) / `(input: CreateTicketInput) => Promise<void>` (생성) | O | 저장 핸들러. `ticket` 유무로 시그니처가 갈리는 판별 유니온 Props로 정의한다 |
 | errors | `Record<string, string>` | X (기본 `{}`) | 필드별 에러 메시지. key는 API_SPEC.md 400 응답의 `error.field` 값(`title`/`description`/`priority`/`dueDate` 등)과 동일하게 맞춘다 |
+| onCancel | `() => void` | O | 취소 핸들러. 폼 하단 버튼 영역에 "취소" 버튼과 제출 버튼(생성 모드 "생성" / 수정 모드 "저장")을 함께 렌더링한다 (`docs/reference/mockup.html` 기준) |
 
 **필드**: 제목 / 설명 / 우선순위 / 시작예정일 / 종료예정일 (수정 가능, FR-004). `status`/`position`은 이 폼에서 다루지 않는다 (드래그앤드롭 전용, FR-007) — `TicketDetailView`에서 읽기 전용으로만 표시된다.
 
@@ -497,6 +500,8 @@ FR-003, FR-004, US-007 대응. `TicketCard` 클릭 시 오픈된다. 내부는 �
 - 클라이언트 사이드 Zod 검증 실패, 서버 400 응답(`error.field` 존재) 모두 동일하게 `errors` prop을 통해 전달받는다 — 검증 주체(클라이언트/서버)에 따라 표시 방식을 분기하지 않는다.
 - `errors[fieldName]`이 있으면 해당 입력 필드 바로 아래에 메시지를 표시한다.
 - `error.field`가 없는 400 응답(필드 특정 불가)은 이 prop으로 전달하지 않고, 호출부(`TicketFormModal`/`TicketModal`)가 폼 상단 또는 `ErrorToast`(§8.3)로 표시한다.
+- **수정 모드의 종료예정일 검증**: 이미 기한이 지난 티켓(`isOverdue`)의 종료예정일을 바꾸지 않았다면 "오늘 이후" 검증에 걸리지 않도록, **값이 바뀐 경우에만** 종료예정일을 검증한다. 생성 모드는 항상 검증한다.
+- **수정 모드의 저장 버튼(2026-10-08 결정)**: 값이 바뀌기 전에는 "저장" 버튼을 비활성(`disabled`)으로 둔다. 원래 값으로 되돌리면 다시 비활성이 된다. 제목 앞뒤 공백만 바뀐 경우는 변경으로 보지 않는다(제출 시 `trim`되므로). 비활성이면 Enter 키 암묵적 제출도 일어나지 않는다. 생성 모드의 "생성" 버튼에는 적용하지 않는다.
 
 ### 6.3 DeleteButton / ConfirmDialog
 
@@ -654,9 +659,9 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 | PriorityBadge | priority | - |
 | OverdueIndicator | (없음) | - |
 | TicketFormModal | isOpen, onClose, onSubmit | onSubmit, onClose |
-| TicketModal | isOpen, ticketId, onClose, onSubmit, onDelete | onSubmit, onDelete, onClose |
+| TicketModal | isOpen, ticket, isLoading, error, onClose, onSubmit, onDelete | onSubmit, onDelete, onClose |
 | TicketDetailView | ticket | - |
-| TicketForm | ticket, onSubmit, errors | onSubmit |
+| TicketForm | ticket, onSubmit, errors, onCancel | onSubmit, onCancel |
 | DeleteButton | onClick | - |
 | Modal (primitive) | isOpen, onClose, children | onClose |
 | Badge (primitive) | variant, children | - |
@@ -667,7 +672,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 
 ## 10. 상태 관리 & 데이터 흐름
 
-- `BoardData` 전체는 `useTickets`(§3.5) 훅이 단일 소스로 보유하며, `BoardContainer`(클라이언트 컴포넌트, 최상위)가 이 훅을 호출해 하위 컴포넌트에 props로 전달한다. 하위 컴포넌트는 props로 내려받은 데이터만 표시하고, 자체적으로 서버 데이터를 재조회하지 않는다 (단, `TicketModal`은 오픈 시 최신 단건 데이터를 별도 조회한다 — §6.2).
+- `BoardData` 전체는 `useTickets`(§3.5) 훅이 단일 소스로 보유하며, `BoardContainer`(클라이언트 컴포넌트, 최상위)가 이 훅을 호출해 하위 컴포넌트에 props로 전달한다. 하위 컴포넌트는 props로 내려받은 데이터만 표시하고, 자체적으로 서버 데이터를 재조회하지 않는다 (단, 모달이 열릴 때의 최신 단건 데이터는 `BoardContainer`가 `useTicket`으로 별도 조회해 `TicketModal`에 props로 전달한다 — §6.2).
 - API 호출은 `src/client/api/ticketApi.ts`를 통해서만 수행한다 (CLAUDE.md 규칙). `useTickets`를 포함해 어떤 컴포넌트/훅도 직접 `fetch`를 호출하지 않는다.
 - 낙관적 업데이트/롤백 상태는 `useTickets` 내부에서 관리한다 (드롭 직전 스냅샷 보관 → 실패 시 복원, §3.5/§7). `BoardContainer`는 이 상태를 직접 소유하지 않고 훅의 반환값을 그대로 사용한다.
 - 드래그앤드롭 이벤트(`DndContext`, `onDragEnd`)는 `BoardContainer`가 아닌 `Board`(§3.4)가 소유한다. `Board`는 드롭 결과를 `onReorder`/`onComplete` prop으로 `BoardContainer`에 올려보내고, `BoardContainer`가 이를 받아 `useTickets`의 대응 액션을 호출한다 (§7).

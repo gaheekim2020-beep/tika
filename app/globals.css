@@ -264,6 +264,11 @@
     @apply mt-5 flex justify-end gap-2 border-t border-border-default pt-4;
   }
 
+  /* TicketModal 하단 삭제 영역 */
+  .delete-zone {
+    @apply mt-4 flex items-center justify-between border-t border-border-default pt-3.5;
+  }
+
   /* TicketDetailView (읽기 전용 필드) */
   .detail-list {
     @apply mb-4 rounded-lg border border-border-default bg-bg-page px-3;
