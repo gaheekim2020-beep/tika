@@ -59,14 +59,33 @@ export const resetDndMock = () => {
   state.sensorCalls = [];
 };
 
-// 핸들러가 읽는 필드만 채운 가짜 이벤트. 실제 이벤트 전체를 흉내 내지 않는다.
-const makeActive = (id: Id) => ({ id, data: { current: undefined }, rect: { current: { initial: null, translated: null } } });
-const makeOver = (id: Id) => ({ id, data: { current: undefined }, rect: { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 }, disabled: false });
+/** 드롭 시점의 위치. 드래그 중인 카드(translated)와 대상(over)의 세로 위치·높이. 생략하면 모두 0/없음 */
+export interface DropGeometry {
+  activeTop: number;
+  activeHeight?: number;
+  overTop: number;
+  overHeight?: number;
+}
 
-const makeEvent = <T,>(activeId: Id, overId?: Id | null): T =>
+const makeRect = (top: number, height: number) => ({ top, left: 0, width: 100, height, bottom: top + height, right: 100 });
+
+// 핸들러가 읽는 필드만 채운 가짜 이벤트. 실제 이벤트 전체를 흉내 내지 않는다.
+const makeActive = (id: Id, geometry?: DropGeometry) => ({
+  id,
+  data: { current: undefined },
+  rect: { current: { initial: null, translated: geometry ? makeRect(geometry.activeTop, geometry.activeHeight ?? 50) : null } },
+});
+const makeOver = (id: Id, geometry?: DropGeometry) => ({
+  id,
+  data: { current: undefined },
+  rect: geometry ? makeRect(geometry.overTop, geometry.overHeight ?? 50) : { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 },
+  disabled: false,
+});
+
+const makeEvent = <T,>(activeId: Id, overId?: Id | null, geometry?: DropGeometry): T =>
   ({
-    active: makeActive(activeId),
-    over: overId === undefined || overId === null ? null : makeOver(overId),
+    active: makeActive(activeId, geometry),
+    over: overId === undefined || overId === null ? null : makeOver(overId, geometry),
     delta: { x: 0, y: 0 },
     collisions: null,
     activatorEvent: new Event("pointerdown"),
@@ -90,10 +109,10 @@ export const dnd = {
     const handler = getProps().onDragOver;
     act(() => handler?.(makeEvent<DragOverEvent>(activeId, overId)));
   },
-  /** overId가 null이면 보드 바깥에 놓은 것 */
-  end: (activeId: Id, overId: Id | null) => {
+  /** overId가 null이면 보드 바깥에 놓은 것. geometry로 놓은 위치(대상 카드의 위/아래쪽)를 지정할 수 있다 */
+  end: (activeId: Id, overId: Id | null, geometry?: DropGeometry) => {
     const handler = getProps().onDragEnd;
-    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId)));
+    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId, geometry)));
   },
   cancel: (activeId: Id) => {
     const handler = getProps().onDragCancel;

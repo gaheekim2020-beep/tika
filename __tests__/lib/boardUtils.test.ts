@@ -63,6 +63,30 @@ describe("resolveDropTarget (§3.4, D8)", () => {
     expect(resolveDropTarget(makeSampleBoard(), X, B)).toEqual({ kind: "reorder", status: "TODO", position: 1536 });
   });
 
+  // 다른 칼럼의 마지막 카드 아래쪽에 놓으면 그 카드 뒤에 놓인다 (칼럼이 가득 차 빈 영역이 없을 때 맨 뒤로 보내는 방법)
+  // TC-CLIENT-UTIL-001-27
+  it("다른 칼럼의 카드 위에서 아래쪽(placeAfter)에 놓으면 그 카드 뒤에 놓인다", () => {
+    const board = makeSampleBoard();
+
+    expect(resolveDropTarget(board, X, C, { placeAfter: true })).toEqual({ kind: "reorder", status: "TODO", position: 4096 });
+    expect(resolveDropTarget(board, X, B, { placeAfter: true })).toEqual({ kind: "reorder", status: "TODO", position: 2560 });
+  });
+
+  it("다른 칼럼의 카드 위에서 위쪽(placeAfter=false)에 놓으면 그 카드 앞에 놓인다", () => {
+    const board = makeSampleBoard();
+
+    expect(resolveDropTarget(board, X, C, { placeAfter: false })).toEqual({ kind: "reorder", status: "TODO", position: 2560 });
+    expect(resolveDropTarget(board, X, A, { placeAfter: false })).toEqual({ kind: "reorder", status: "TODO", position: 0 });
+  });
+
+  // TC-CLIENT-UTIL-001-28
+  it("같은 칼럼 안의 이동은 placeAfter와 상관없이 이동 방향으로 앞/뒤를 정한다", () => {
+    const board = makeSampleBoard();
+
+    expect(resolveDropTarget(board, A, B, { placeAfter: false })).toEqual({ kind: "reorder", status: "TODO", position: 2560 });
+    expect(resolveDropTarget(board, C, B, { placeAfter: true })).toEqual({ kind: "reorder", status: "TODO", position: 1536 });
+  });
+
   // TC-CLIENT-UTIL-001-07
   it("칼럼의 빈 영역에 드롭하면 맨 뒤에 놓인다", () => {
     expect(resolveDropTarget(makeSampleBoard(), X, columnDropId("TODO"))).toEqual({

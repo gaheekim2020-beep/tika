@@ -101,6 +101,26 @@ describe("dndMock 헬퍼", () => {
     expect(onEnd.mock.calls[0][0].over.id).toBe(8);
   });
 
+  it("end()에 geometry를 주면 active.translated와 over.rect에 그 위치가 담긴다", () => {
+    const onEnd = jest.fn();
+    render(<Probe onEnd={onEnd} />);
+
+    dnd.end("7", "8", { activeTop: 120, activeHeight: 40, overTop: 100, overHeight: 60 });
+
+    const event = onEnd.mock.calls[0][0];
+    expect(event.active.rect.current.translated).toMatchObject({ top: 120, height: 40 });
+    expect(event.over.rect).toMatchObject({ top: 100, height: 60 });
+  });
+
+  it("geometry를 주지 않으면 translated는 null이다", () => {
+    const onEnd = jest.fn();
+    render(<Probe onEnd={onEnd} />);
+
+    dnd.end("7", "8");
+
+    expect(onEnd.mock.calls[0][0].active.rect.current.translated).toBeNull();
+  });
+
   it("cancel()이 onDragCancel을 호출한다", () => {
     render(<Probe />);
     dnd.start("7");

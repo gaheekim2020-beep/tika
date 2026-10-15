@@ -50,11 +50,18 @@ const withoutTicket = (board: BoardData, ticketId: number): BoardData =>
 
 /**
  * 드롭 결과를 서버 호출로 바꾼다.
- * - 카드 위에 드롭: 그 카드가 있던 자리 (위로 이동하면 앞, 아래로 이동하면 뒤)
+ * - 카드 위에 드롭: 같은 칼럼이면 이동 방향대로(위로 이동하면 앞, 아래로 이동하면 뒤),
+ *   다른 칼럼이면 `placeAfter`가 true일 때 그 카드 뒤, 아니면 앞
+ *   (`placeAfter`: 드래그 중인 카드가 대상 카드의 아래쪽에 놓였는지. 칼럼이 가득 차 빈 영역이 없을 때 맨 뒤로 보내는 방법)
  * - 칼럼 영역에 드롭: 맨 뒤
  * - 대상이 DONE이면 complete, DONE 안의 이동·제자리·대상 없음은 null (D8)
  */
-export const resolveDropTarget = (board: BoardData, activeId: number, overId: DragId | null): DropTarget | null => {
+export const resolveDropTarget = (
+  board: BoardData,
+  activeId: number,
+  overId: DragId | null,
+  { placeAfter = false }: { placeAfter?: boolean } = {}
+): DropTarget | null => {
   if (overId === null) return null;
 
   const active = findTicket(board, activeId);
@@ -78,9 +85,10 @@ export const resolveDropTarget = (board: BoardData, activeId: number, overId: Dr
 
     const fromIndex = original.findIndex((ticket) => ticket.id === activeId);
     const overIndex = original.findIndex((ticket) => ticket.id === overTicket.id);
-    const isMovingDown = fromIndex !== -1 && fromIndex < overIndex;
+    const isSameColumn = active.status === targetStatus;
+    const isAfter = isSameColumn ? fromIndex < overIndex : placeAfter;
     const overIndexInOthers = others.findIndex((ticket) => ticket.id === overTicket.id);
-    const insertIndex = isMovingDown ? overIndexInOthers + 1 : overIndexInOthers;
+    const insertIndex = isAfter ? overIndexInOthers + 1 : overIndexInOthers;
 
     return {
       kind: "reorder",

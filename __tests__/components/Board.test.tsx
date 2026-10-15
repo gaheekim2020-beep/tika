@@ -84,6 +84,25 @@ describe("Board — 드롭 처리 (§3.4, §3.6)", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
+  // TC-COMP-003-17
+  it("다른 칼럼의 마지막 카드 아래쪽에 놓으면 그 카드 뒤(맨 뒤)에 놓인다 (가득 찬 칼럼)", () => {
+    const { onReorder } = setup();
+
+    // 대상 카드 C(top 200, 높이 50, 중심 225) 아래쪽: 드래그 중인 카드 중심 = 230 + 25 = 255
+    dnd.end(X, C, { activeTop: 230, activeHeight: 50, overTop: 200, overHeight: 50 });
+
+    expect(onReorder).toHaveBeenCalledWith(X, "TODO", 4096);
+  });
+
+  it("다른 칼럼의 카드 위쪽에 놓으면 그 카드 앞에 놓인다", () => {
+    const { onReorder } = setup();
+
+    // 드래그 중인 카드 중심 = 170 + 25 = 195 < 대상 중심 225
+    dnd.end(X, C, { activeTop: 170, activeHeight: 50, overTop: 200, overHeight: 50 });
+
+    expect(onReorder).toHaveBeenCalledWith(X, "TODO", 2560);
+  });
+
   it("칼럼 영역에 놓으면 그 칼럼 맨 뒤 position으로 onReorder를 호출한다", () => {
     const { onReorder } = setup();
 

@@ -49,6 +49,15 @@ const collisionDetection: CollisionDetection = (args) => {
   return cardHit ? [cardHit] : hits.slice(0, 1);
 };
 
+// 드래그 중인 카드의 중심이 대상의 중심보다 아래면 "그 카드 뒤"에 놓은 것으로 본다 (dnd-kit 멀티 컨테이너 예제와 같은 방식).
+// 칼럼이 카드로 가득 차 빈 영역이 없을 때도 마지막 카드의 아래쪽에 놓아 맨 뒤로 보낼 수 있다.
+const isDroppedBelowCenter = ({ active, over }: DragEndEvent) => {
+  const dragged = active.rect.current.translated;
+  if (!dragged || !over) return false;
+
+  return dragged.top + dragged.height / 2 > over.rect.top + over.rect.height / 2;
+};
+
 export const Board = ({ board, onTicketClick, onReorder, onComplete }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [overStatus, setOverStatus] = useState<TicketStatus | null>(null);
@@ -86,7 +95,9 @@ export const Board = ({ board, onTicketClick, onReorder, onComplete }: BoardProp
     resetDrag();
 
     const ticketId = Number(event.active.id);
-    const target = resolveDropTarget(board, ticketId, event.over?.id ?? null);
+    const target = resolveDropTarget(board, ticketId, event.over?.id ?? null, {
+      placeAfter: isDroppedBelowCenter(event),
+    });
     if (!target) return;
 
     if (target.kind === "complete") {
