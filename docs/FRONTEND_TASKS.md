@@ -282,15 +282,15 @@ graph LR
 
 구현 `src/client/lib/boardUtils.ts` · 테스트 `__tests__/lib/boardUtils.test.ts` · 선행 없음 · TC `TC-CLIENT-UTIL-001-01~26`
 
-- [ ] Red `calculatePosition(prev, next)`: 두 값 사이 → `Math.ceil((prev+next)/2)` (예: 1024, 2048 → 1536 / 1024, 1025 → 1025)
-- [ ] Red: 맨 앞(`prev=null`) → `next - 1024`, 맨 뒤(`next=null`) → `prev + 1024`, 빈 칼럼(둘 다 null) → `1024` (D8)
-- [ ] Red `resolveDropTarget(board, activeId, overId)`: 카드 위에 드롭 → 그 카드의 칼럼과 앞뒤 이웃 기준 position, 칼럼 영역에 드롭 → 해당 칼럼 맨 뒤
-- [ ] Red: **같은 칼럼 안 이동**에서는 이동 카드 자신을 이웃 계산에서 제외한다 (위로 이동 / 아래로 이동 각각)
-- [ ] Red: 대상이 DONE이면 `complete` 액션 대상으로 구분한다 (`{ kind: "complete" }` / `{ kind: "reorder", status, position }`), DONE 칼럼 안에서의 이동과 제자리 드롭은 `null` (D8)
-- [ ] Red `moveTicket(board, ticketId, status, position)`: 원본 불변, 원래 칼럼에서 제거, 대상 칼럼에 `status`/`position`을 반영해 position 오름차순으로 삽입
-- [ ] Red: `completeInBoard`는 DONE 맨 위에 두고 `completedAt`을 현재 시각으로 채운다 (낙관적 반영용)
-- [ ] Red: `insertTicket`(생성 → BACKLOG 맨 위), `replaceTicket`(수정), `removeTicket`(삭제)이 불변으로 동작하고, 없는 id에는 보드를 그대로 반환한다
-- [ ] 구현 메모: 모든 함수는 `BoardData`를 새 객체로 반환, 테스트는 `makeBoard` 사용
+- [X] Red `calculatePosition(prev, next)`: 두 값 사이 → `Math.ceil((prev+next)/2)` (예: 1024, 2048 → 1536 / 1024, 1025 → 1025)
+- [X] Red: 맨 앞(`prev=null`) → `next - 1024`, 맨 뒤(`next=null`) → `prev + 1024`, 빈 칼럼(둘 다 null) → `1024` (D8)
+- [X] Red `resolveDropTarget(board, activeId, overId)`: 카드 위에 드롭 → 그 카드의 칼럼과 앞뒤 이웃 기준 position, 칼럼 영역에 드롭 → 해당 칼럼 맨 뒤
+- [X] Red: **같은 칼럼 안 이동**에서는 이동 카드 자신을 이웃 계산에서 제외한다 (위로 이동 / 아래로 이동 각각)
+- [X] Red: 대상이 DONE이면 `complete` 액션 대상으로 구분한다 (`{ kind: "complete" }` / `{ kind: "reorder", status, position }`), DONE 칼럼 안에서의 이동과 제자리 드롭은 `null` (D8)
+- [X] Red `moveTicket(board, ticketId, status, position)`: 원본 불변, 원래 칼럼에서 제거, 대상 칼럼에 `status`/`position`을 반영해 position 오름차순으로 삽입
+- [X] Red: `completeInBoard`는 DONE 맨 위에 두고 `completedAt`을 현재 시각으로 채운다 (낙관적 반영용)
+- [X] Red: `insertTicket`(생성 → BACKLOG 맨 위), `replaceTicket`(수정), `removeTicket`(삭제)이 불변으로 동작하고, 없는 id에는 보드를 그대로 반환한다
+- [X] 구현 메모: 모든 함수는 `BoardData`를 새 객체로 반환, 테스트는 `makeBoard` 사용
 
 #### P1-3. `useTickets`
 
@@ -466,21 +466,21 @@ graph LR
 
 선행 `Column`, `boardUtils` · 테스트는 `DndContext` mock으로 핸들러를 캡처 (§1.3) · 클래스 `.board`
 
-- [ ] Red: TC-COMP-003-01 — BACKLOG → TODO → IN_PROGRESS → DONE 순서로 4개 칼럼을 렌더링한다 (`COLUMN_ORDER` 사용)
-- [ ] Red: `board`의 티켓이 각 칼럼에 올바르게 나뉘어 보인다
-- [ ] Red: TC-COMP-003-02/03 — `onDragEnd`(active=카드, over=TODO 칼럼/카드)에서 `onReorder(ticketId, "TODO", position)`이 `calculatePosition` 결과로 호출된다 (칼럼 간 / 같은 칼럼 순서 변경)
-- [ ] Red: TC-COMP-003-04 — over가 DONE이면 `onComplete(ticketId)`가 호출되고 `onReorder`는 호출되지 않는다
-- [ ] Red: TC-COMP-003-15 — DONE 칼럼 안에서의 이동이나 제자리 드롭은 어느 콜백도 호출하지 않고 카드가 제자리로 돌아간다 (D8)
-- [ ] Red: TC-COMP-003-16 — 빈 칼럼으로 드롭하면 `onReorder(ticketId, status, 1024)`가 호출된다 (D8)
-- [ ] Red: TC-COMP-003-14 — `over=null`(보드 바깥 드롭)이면 콜백을 호출하지 않는다
-- [ ] Red: TC-COMP-003-13 — `onDragCancel`(Esc)이면 콜백을 호출하지 않고 `activeId`가 초기화된다
-- [ ] Red: TC-COMP-003-05 — `onDragStart` 후 `DragOverlay`에 해당 카드 미리보기가 렌더링되고, 종료/취소 후 사라진다 (`activeId`는 `Board` 로컬 상태, §3.4)
-- [ ] Red: TC-COMP-003-06 — `onDragOver`로 대상 칼럼 하이라이트가 켜지고 종료 시 꺼진다
-- [ ] Red: 센서 구성 (TRD §1.5) — `PointerSensor(distance: 8)`, `TouchSensor(delay: 250, tolerance: 5)`, `KeyboardSensor`가 등록된다 (TC-COMP-003-11의 자동 검증 범위). `KeyboardSensor`는 `keyboardCodes.start = [KeyboardCode.Space]`(D6), 나머지는 기본값(TRD §1.5)
-- [ ] P4에서 `TicketCard`에 dnd 연결: `useSortable`로 draggable 구현, 드래그 중 원본은 `.card--dragging`, `DragOverlay`용 미리보기는 `isOverlay` 같은 prop으로 `.card--overlay` 적용(원본과 같은 id를 `useSortable`에 중복 등록하지 않는다), 키 핸들러는 dnd 리스너의 `onKeyDown`과 합쳐 Enter만 모달을 연다(D6), 클릭과 드래그 구분은 센서(`distance: 8`)에 맡긴다. 테스트는 `renderWithDnd`로 감싸 렌더링만 검증
-- [ ] P4에서 `Column`에 dnd 연결: `useDroppable`(칼럼 영역 id는 `column:<status>`), `SortableContext`에 카드 id 목록 전달, `isOver`이면 `.column--over` 적용 (TC-COMP-003-06의 기반), 빈 칼럼에서도 드롭 영역이 유지되도록 `.card-list` 최소 높이 사용
-- [ ] P4에서 `DndContext`에 고정 `id` 지정: 지정하지 않으면 `aria-describedby`(`DndDescribedBy-N`)가 서버·클라이언트에서 달라 hydration 오류가 난다 (P3 프리뷰에서 발생했던 문제)
-- [ ] 구현 메모: `DndContext`는 `Board`에 한 곳만, `onTicketClick`은 `Column`으로 전달, 레이아웃은 `.board`(모바일 세로 / `md` 2열 / `lg` `280px 1fr 1fr 1fr`)
+- [X] Red: TC-COMP-003-01 — BACKLOG → TODO → IN_PROGRESS → DONE 순서로 4개 칼럼을 렌더링한다 (`COLUMN_ORDER` 사용)
+- [X] Red: `board`의 티켓이 각 칼럼에 올바르게 나뉘어 보인다
+- [X] Red: TC-COMP-003-02/03 — `onDragEnd`(active=카드, over=TODO 칼럼/카드)에서 `onReorder(ticketId, "TODO", position)`이 `calculatePosition` 결과로 호출된다 (칼럼 간 / 같은 칼럼 순서 변경)
+- [X] Red: TC-COMP-003-04 — over가 DONE이면 `onComplete(ticketId)`가 호출되고 `onReorder`는 호출되지 않는다
+- [X] Red: TC-COMP-003-15 — DONE 칼럼 안에서의 이동이나 제자리 드롭은 어느 콜백도 호출하지 않고 카드가 제자리로 돌아간다 (D8)
+- [X] Red: TC-COMP-003-16 — 빈 칼럼으로 드롭하면 `onReorder(ticketId, status, 1024)`가 호출된다 (D8)
+- [X] Red: TC-COMP-003-14 — `over=null`(보드 바깥 드롭)이면 콜백을 호출하지 않는다
+- [X] Red: TC-COMP-003-13 — `onDragCancel`(Esc)이면 콜백을 호출하지 않고 `activeId`가 초기화된다
+- [X] Red: TC-COMP-003-05 — `onDragStart` 후 `DragOverlay`에 해당 카드 미리보기가 렌더링되고, 종료/취소 후 사라진다 (`activeId`는 `Board` 로컬 상태, §3.4)
+- [X] Red: TC-COMP-003-06 — `onDragOver`로 대상 칼럼 하이라이트가 켜지고 종료 시 꺼진다
+- [X] Red: 센서 구성 (TRD §1.5) — `PointerSensor(distance: 8)`, `TouchSensor(delay: 250, tolerance: 5)`, `KeyboardSensor`가 등록된다 (TC-COMP-003-11의 자동 검증 범위). `KeyboardSensor`는 `keyboardCodes.start = [KeyboardCode.Space]`(D6), 나머지는 기본값(TRD §1.5)
+- [X] P4에서 `TicketCard`에 dnd 연결: `useSortable`로 draggable 구현, 드래그 중 원본은 `.card--dragging`, `DragOverlay`용 미리보기는 `isOverlay` 같은 prop으로 `.card--overlay` 적용(원본과 같은 id를 `useSortable`에 중복 등록하지 않는다), 키 핸들러는 dnd 리스너의 `onKeyDown`과 합쳐 Enter만 모달을 연다(D6), 클릭과 드래그 구분은 센서(`distance: 8`)에 맡긴다. 테스트는 `renderWithDnd`로 감싸 렌더링만 검증
+- [X] P4에서 `Column`에 dnd 연결: `useDroppable`(칼럼 영역 id는 `column:<status>`), `SortableContext`에 카드 id 목록 전달, `isOver`이면 `.column--over` 적용 (TC-COMP-003-06의 기반), 빈 칼럼에서도 드롭 영역이 유지되도록 `.card-list` 최소 높이 사용
+- [X] P4에서 `DndContext`에 고정 `id` 지정: 지정하지 않으면 `aria-describedby`(`DndDescribedBy-N`)가 서버·클라이언트에서 달라 hydration 오류가 난다 (P3 프리뷰에서 발생했던 문제)
+- [X] 구현 메모: `DndContext`는 `Board`에 한 곳만, `onTicketClick`은 `Column`으로 전달, 레이아웃은 `.board`(모바일 세로 / `md` 2열 / `lg` `280px 1fr 1fr 1fr`)
 - [ ] 수동 확인(P7): TC-COMP-003-07(키보드 이동), 003-08~10(배치), 003-11(터치 드래그)
 
 **Phase 4 완료 기준**: TC-COMP-003-01~06, 013~016 자동 테스트 통과.
