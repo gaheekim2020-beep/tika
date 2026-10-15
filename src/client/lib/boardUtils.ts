@@ -17,6 +17,8 @@ export type DropTarget = { kind: "reorder"; status: ReorderableStatus; position:
 /** 칼럼 영역의 droppable id. 카드 id(숫자)와 겹치지 않도록 접두사를 붙인다 */
 export const columnDropId = (status: TicketStatus) => `${COLUMN_DROP_PREFIX}${status}`;
 
+export const isColumnDropId = (id: DragId): boolean => typeof id === "string" && id.startsWith(COLUMN_DROP_PREFIX);
+
 const parseColumnDropId = (id: DragId): TicketStatus | null => {
   if (typeof id !== "string" || !id.startsWith(COLUMN_DROP_PREFIX)) return null;
   const status = id.slice(COLUMN_DROP_PREFIX.length);

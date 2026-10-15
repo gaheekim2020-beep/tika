@@ -101,24 +101,24 @@ describe("dndMock 헬퍼", () => {
     expect(onEnd.mock.calls[0][0].over.id).toBe(8);
   });
 
-  it("end()에 geometry를 주면 active.translated와 over.rect에 그 위치가 담긴다", () => {
+  it("end()에 placeAfter를 주면 collisions[0].data에 담긴다", () => {
     const onEnd = jest.fn();
     render(<Probe onEnd={onEnd} />);
 
-    dnd.end("7", "8", { activeTop: 120, activeHeight: 40, overTop: 100, overHeight: 60 });
+    dnd.end("7", "8", { placeAfter: true });
 
-    const event = onEnd.mock.calls[0][0];
-    expect(event.active.rect.current.translated).toMatchObject({ top: 120, height: 40 });
-    expect(event.over.rect).toMatchObject({ top: 100, height: 60 });
+    expect(onEnd.mock.calls[0][0].collisions).toEqual([{ id: "8", data: { placeAfter: true } }]);
   });
 
-  it("geometry를 주지 않으면 translated는 null이다", () => {
+  it("options를 주지 않으면 collisions의 data는 비어 있고, over가 null이면 collisions도 null이다", () => {
     const onEnd = jest.fn();
     render(<Probe onEnd={onEnd} />);
 
     dnd.end("7", "8");
+    dnd.end("7", null);
 
-    expect(onEnd.mock.calls[0][0].active.rect.current.translated).toBeNull();
+    expect(onEnd.mock.calls[0][0].collisions).toEqual([{ id: "8", data: undefined }]);
+    expect(onEnd.mock.calls[1][0].collisions).toBeNull();
   });
 
   it("cancel()이 onDragCancel을 호출한다", () => {

@@ -623,8 +623,15 @@
 | TC-CLIENT-UTIL-001-11 | 같은 칼럼 맨 앞으로 이동 | TODO의 C를 A 위에 드롭 | `position: 0` |
 | TC-CLIENT-UTIL-001-12 | 다른 칼럼에서 DONE으로 | TODO의 B를 DONE 칼럼 또는 D 카드 위에 드롭 | `{ kind: "complete" }` |
 | TC-CLIENT-UTIL-001-13 | DONE에서 다른 칼럼으로 | DONE의 D를 TODO 칼럼 영역에 드롭 | `{ kind: "reorder", status: "TODO", position: 4096 }` (DONE 이탈은 허용) |
-| TC-CLIENT-UTIL-001-27 | 다른 칼럼의 카드 아래쪽에 드롭 | `resolveDropTarget(board, X, C, { placeAfter: true })` (TODO의 마지막 카드 C의 아래쪽) | `{ kind: "reorder", status: "TODO", position: 4096 }` (C 뒤. B의 아래쪽이면 B와 C 사이 `2560`). `placeAfter`는 드래그 중인 카드의 중심이 대상 카드의 중심보다 아래일 때 `true` |
+| TC-CLIENT-UTIL-001-27 | 다른 칼럼의 카드 아래쪽에 드롭 | `resolveDropTarget(board, X, C, { placeAfter: true })` (TODO의 마지막 카드 C의 아래쪽) | `{ kind: "reorder", status: "TODO", position: 4096 }` (C 뒤. B의 아래쪽이면 B와 C 사이 `2560`). `placeAfter`는 충돌 감지가 판단한 값(포인터가 대상 카드의 중심보다 아래일 때 `true`, TC-CLIENT-UTIL-001-29) |
 | TC-CLIENT-UTIL-001-28 | 같은 칼럼 이동은 `placeAfter`와 무관 | TODO의 A를 B 위에 드롭(`placeAfter: false`) / C를 B 위에 드롭(`placeAfter: true`) | 이동 방향이 우선한다: A는 B 뒤(`2560`), C는 B 앞(`1536`) |
+| TC-CLIENT-UTIL-001-29 | 카드 위에서 앞/뒤 판단 (`boardCollisionDetection`) | TODO의 카드 5(y 50~150) 위쪽 절반(y=70) / 아래쪽 절반(y=140)에 포인터 | 대상 카드 5와 `placeAfter: false` / `true`. 판단 기준은 포인터 위치와 대상 카드의 중심이다 |
+| TC-CLIENT-UTIL-001-30 | 첫 카드 위 여백 | 포인터가 칼럼 안, 첫 카드 위 여백(y=20) | 첫 카드와 `placeAfter: false` (첫 카드 앞) |
+| TC-CLIENT-UTIL-001-31 | 마지막 카드 아래 여백 | 포인터가 칼럼 안, 마지막 카드 아래 여백(y=330) | 마지막 카드와 `placeAfter: true` (마지막 카드 뒤). 카드 사이 틈에서는 더 가까운 카드가 대상 |
+| TC-CLIENT-UTIL-001-32 | 드래그 중인 카드가 커도 포인터 기준 | 드래그 중인 카드의 중심이 대상보다 훨씬 아래에 있지만 포인터는 카드 5의 위쪽 절반 / 첫 카드 위 여백 | 카드 크기·중심과 무관하게 카드 5와 `placeAfter: false` |
+| TC-CLIENT-UTIL-001-33 | 카드가 없는 칼럼 | 포인터가 빈 칼럼 안 | 칼럼 자신(`column:<status>`)이 대상 |
+| TC-CLIENT-UTIL-001-34 | 대상 없음 | 포인터가 어느 칼럼에도 속하지 않음(보드 바깥, 칼럼 사이 틈) | 빈 배열(드롭해도 아무 일도 일어나지 않음). 다른 칼럼의 카드는 후보가 되지 않는다 |
+| TC-CLIENT-UTIL-001-35 | 키보드(포인터 없음) | `pointerCoordinates=null`, 드래그 중인 카드의 중심이 카드 5의 아래쪽 절반 | 중심 좌표를 포인터로 대신 써서 카드 5와 `placeAfter: true`. 포인터도 드래그 영역도 없으면 빈 배열 |
 | TC-CLIENT-UTIL-001-14 | 칼럼 간 이동 반영 (`moveTicket`) | X를 TODO, `position=1536`으로 이동 | 원래 칼럼에서 사라지고 TODO가 `[A, X, B, C]` 순서가 되며 X의 `status`/`position`이 반영된다 |
 | TC-CLIENT-UTIL-001-15 | 원본 불변 | 위 이동 후 | 입력으로 넘긴 보드 객체는 바뀌지 않고 새 객체가 반환된다 |
 | TC-CLIENT-UTIL-001-16 | 완료 낙관적 반영 (`completeInBoard`) | TODO의 B를 완료 처리 | DONE 맨 위(기존 최솟값 - 1024, 비어 있으면 1024)에 놓이고 `status="DONE"`, `completedAt`이 현재 시각으로 채워진다 |

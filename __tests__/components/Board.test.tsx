@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { KeyboardCode, KeyboardSensor, PointerSensor, TouchSensor } from "@dnd-kit/core";
 import { Board } from "@/client/components/Board";
+import { boardCollisionDetection } from "@/client/lib/boardCollision";
 import { dnd, resetDndMock } from "../helpers/dndMock";
 import { makeBoardOf, makeEmptyBoard, makeTicket } from "../helpers/fixtures";
 
@@ -85,22 +86,26 @@ describe("Board — 드롭 처리 (§3.4, §3.6)", () => {
   });
 
   // TC-COMP-003-17
-  it("다른 칼럼의 마지막 카드 아래쪽에 놓으면 그 카드 뒤(맨 뒤)에 놓인다 (가득 찬 칼럼)", () => {
+  it("다른 칼럼의 마지막 카드의 뒤에 놓으면(placeAfter) 맨 뒤에 놓인다 (가득 찬 칼럼)", () => {
     const { onReorder } = setup();
 
-    // 대상 카드 C(top 200, 높이 50, 중심 225) 아래쪽: 드래그 중인 카드 중심 = 230 + 25 = 255
-    dnd.end(X, C, { activeTop: 230, activeHeight: 50, overTop: 200, overHeight: 50 });
+    dnd.end(X, C, { placeAfter: true });
 
     expect(onReorder).toHaveBeenCalledWith(X, "TODO", 4096);
   });
 
-  it("다른 칼럼의 카드 위쪽에 놓으면 그 카드 앞에 놓인다", () => {
+  it("다른 칼럼의 카드 앞에 놓으면(placeAfter 아님) 그 카드 앞에 놓인다", () => {
     const { onReorder } = setup();
 
-    // 드래그 중인 카드 중심 = 170 + 25 = 195 < 대상 중심 225
-    dnd.end(X, C, { activeTop: 170, activeHeight: 50, overTop: 200, overHeight: 50 });
+    dnd.end(X, C, { placeAfter: false });
 
     expect(onReorder).toHaveBeenCalledWith(X, "TODO", 2560);
+  });
+
+  it("DndContext에 포인터 기준 충돌 감지가 지정된다", () => {
+    setup();
+
+    expect(dnd.props().collisionDetection).toBe(boardCollisionDetection);
   });
 
   it("칼럼 영역에 놓으면 그 칼럼 맨 뒤 position으로 onReorder를 호출한다", () => {

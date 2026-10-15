@@ -59,37 +59,26 @@ export const resetDndMock = () => {
   state.sensorCalls = [];
 };
 
-/** 드롭 시점의 위치. 드래그 중인 카드(translated)와 대상(over)의 세로 위치·높이. 생략하면 모두 0/없음 */
-export interface DropGeometry {
-  activeTop: number;
-  activeHeight?: number;
-  overTop: number;
-  overHeight?: number;
+// 핸들러가 읽는 필드만 채운 가짜 이벤트. 실제 이벤트 전체를 흉내 내지 않는다.
+const makeActive = (id: Id) => ({ id, data: { current: undefined }, rect: { current: { initial: null, translated: null } } });
+const makeOver = (id: Id) => ({ id, data: { current: undefined }, rect: { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 }, disabled: false });
+
+/** 드롭 시점의 충돌 정보. placeAfter는 Board의 충돌 감지가 collision.data에 담는 "대상 카드의 뒤에 놓았는지" */
+export interface DropOptions {
+  placeAfter?: boolean;
 }
 
-const makeRect = (top: number, height: number) => ({ top, left: 0, width: 100, height, bottom: top + height, right: 100 });
+const makeEvent = <T,>(activeId: Id, overId?: Id | null, options?: DropOptions): T => {
+  const hasOver = overId !== undefined && overId !== null;
 
-// 핸들러가 읽는 필드만 채운 가짜 이벤트. 실제 이벤트 전체를 흉내 내지 않는다.
-const makeActive = (id: Id, geometry?: DropGeometry) => ({
-  id,
-  data: { current: undefined },
-  rect: { current: { initial: null, translated: geometry ? makeRect(geometry.activeTop, geometry.activeHeight ?? 50) : null } },
-});
-const makeOver = (id: Id, geometry?: DropGeometry) => ({
-  id,
-  data: { current: undefined },
-  rect: geometry ? makeRect(geometry.overTop, geometry.overHeight ?? 50) : { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 },
-  disabled: false,
-});
-
-const makeEvent = <T,>(activeId: Id, overId?: Id | null, geometry?: DropGeometry): T =>
-  ({
-    active: makeActive(activeId, geometry),
-    over: overId === undefined || overId === null ? null : makeOver(overId, geometry),
+  return {
+    active: makeActive(activeId),
+    over: hasOver ? makeOver(overId) : null,
     delta: { x: 0, y: 0 },
-    collisions: null,
+    collisions: hasOver ? [{ id: overId, data: options ? { placeAfter: options.placeAfter } : undefined }] : null,
     activatorEvent: new Event("pointerdown"),
-  }) as unknown as T;
+  } as unknown as T;
+};
 
 const getProps = (): DndContextProps => {
   if (!state.props) {
@@ -109,10 +98,10 @@ export const dnd = {
     const handler = getProps().onDragOver;
     act(() => handler?.(makeEvent<DragOverEvent>(activeId, overId)));
   },
-  /** overId가 null이면 보드 바깥에 놓은 것. geometry로 놓은 위치(대상 카드의 위/아래쪽)를 지정할 수 있다 */
-  end: (activeId: Id, overId: Id | null, geometry?: DropGeometry) => {
+  /** overId가 null이면 보드 바깥에 놓은 것. options.placeAfter로 대상 카드의 뒤에 놓았는지를 지정할 수 있다 */
+  end: (activeId: Id, overId: Id | null, options?: DropOptions) => {
     const handler = getProps().onDragEnd;
-    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId, geometry)));
+    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId, options)));
   },
   cancel: (activeId: Id) => {
     const handler = getProps().onDragCancel;

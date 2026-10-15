@@ -6,11 +6,8 @@ import {
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
-  pointerWithin,
-  rectIntersection,
   useSensor,
   useSensors,
-  type CollisionDetection,
   type DragEndEvent,
   type DragOverEvent,
   type DragStartEvent,
@@ -23,6 +20,7 @@ import {
   type TicketStatus,
   type TicketWithMeta,
 } from "@/shared/types";
+import { boardCollisionDetection } from "@/client/lib/boardCollision";
 import { findTicket, getDropStatus, resolveDropTarget } from "@/client/lib/boardUtils";
 import { Column } from "./Column";
 import { TicketCardOverlay } from "./TicketCard";
@@ -38,25 +36,6 @@ type BoardProps = {
 
 // DndContext에 id를 주지 않으면 aria-describedby(DndDescribedBy-N)가 서버·클라이언트에서 달라 hydration 오류가 난다
 const DND_CONTEXT_ID = "board-dnd";
-
-// 칼럼은 카드를 감싸는 큰 영역이라 둘이 겹칠 때는 카드를 우선한다 (카드 위 = 그 카드 자리, 빈 영역 = 칼럼 맨 뒤).
-// 키보드 조작처럼 포인터 좌표가 없으면 겹치는 영역으로 판단한다.
-const collisionDetection: CollisionDetection = (args) => {
-  const pointerHits = pointerWithin(args);
-  const hits = pointerHits.length > 0 ? pointerHits : rectIntersection(args);
-  const cardHit = hits.find((hit) => typeof hit.id === "number");
-
-  return cardHit ? [cardHit] : hits.slice(0, 1);
-};
-
-// 드래그 중인 카드의 중심이 대상의 중심보다 아래면 "그 카드 뒤"에 놓은 것으로 본다 (dnd-kit 멀티 컨테이너 예제와 같은 방식).
-// 칼럼이 카드로 가득 차 빈 영역이 없을 때도 마지막 카드의 아래쪽에 놓아 맨 뒤로 보낼 수 있다.
-const isDroppedBelowCenter = ({ active, over }: DragEndEvent) => {
-  const dragged = active.rect.current.translated;
-  if (!dragged || !over) return false;
-
-  return dragged.top + dragged.height / 2 > over.rect.top + over.rect.height / 2;
-};
 
 export const Board = ({ board, onTicketClick, onReorder, onComplete }: BoardProps) => {
   const [activeId, setActiveId] = useState<number | null>(null);
@@ -96,7 +75,8 @@ export const Board = ({ board, onTicketClick, onReorder, onComplete }: BoardProp
 
     const ticketId = Number(event.active.id);
     const target = resolveDropTarget(board, ticketId, event.over?.id ?? null, {
-      placeAfter: isDroppedBelowCenter(event),
+      // 충돌 감지(boardCollision)가 포인터 위치로 판단한 "대상 카드의 뒤에 놓았는지"
+      placeAfter: event.collisions?.[0]?.data?.placeAfter === true,
     });
     if (!target) return;
 
@@ -111,7 +91,7 @@ export const Board = ({ board, onTicketClick, onReorder, onComplete }: BoardProp
     <DndContext
       id={DND_CONTEXT_ID}
       sensors={sensors}
-      collisionDetection={collisionDetection}
+      collisionDetection={boardCollisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
