@@ -63,14 +63,22 @@ export const resetDndMock = () => {
 const makeActive = (id: Id) => ({ id, data: { current: undefined }, rect: { current: { initial: null, translated: null } } });
 const makeOver = (id: Id) => ({ id, data: { current: undefined }, rect: { width: 0, height: 0, top: 0, left: 0, bottom: 0, right: 0 }, disabled: false });
 
-const makeEvent = <T,>(activeId: Id, overId?: Id | null): T =>
-  ({
+/** 드롭 시점의 충돌 정보. placeAfter는 Board의 충돌 감지가 collision.data에 담는 "대상 카드의 뒤에 놓았는지" */
+export interface DropOptions {
+  placeAfter?: boolean;
+}
+
+const makeEvent = <T,>(activeId: Id, overId?: Id | null, options?: DropOptions): T => {
+  const hasOver = overId !== undefined && overId !== null;
+
+  return {
     active: makeActive(activeId),
-    over: overId === undefined || overId === null ? null : makeOver(overId),
+    over: hasOver ? makeOver(overId) : null,
     delta: { x: 0, y: 0 },
-    collisions: null,
+    collisions: hasOver ? [{ id: overId, data: options ? { placeAfter: options.placeAfter } : undefined }] : null,
     activatorEvent: new Event("pointerdown"),
-  }) as unknown as T;
+  } as unknown as T;
+};
 
 const getProps = (): DndContextProps => {
   if (!state.props) {
@@ -90,10 +98,10 @@ export const dnd = {
     const handler = getProps().onDragOver;
     act(() => handler?.(makeEvent<DragOverEvent>(activeId, overId)));
   },
-  /** overId가 null이면 보드 바깥에 놓은 것 */
-  end: (activeId: Id, overId: Id | null) => {
+  /** overId가 null이면 보드 바깥에 놓은 것. options.placeAfter로 대상 카드의 뒤에 놓았는지를 지정할 수 있다 */
+  end: (activeId: Id, overId: Id | null, options?: DropOptions) => {
     const handler = getProps().onDragEnd;
-    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId)));
+    act(() => handler?.(makeEvent<DragEndEvent>(activeId, overId, options)));
   },
   cancel: (activeId: Id) => {
     const handler = getProps().onDragCancel;

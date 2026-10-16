@@ -349,9 +349,10 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 | status | `TicketStatus` | O | 이 칼럼이 표시할 상태 |
 | tickets | `TicketWithMeta[]` | O | 해당 상태의 티켓 목록 (position 오름차순) |
 | onTicketClick | `(ticket: TicketWithMeta) => void` | O | 카드 클릭 핸들러 |
+| isOver | `boolean` | - | 드래그 중인 카드가 이 칼럼 위에 있으면 `true` (기본 `false`). `.column--over`로 강조한다. `Board`가 `onDragOver`로 판단해 내려 준다 (§3.4, TC-COMP-003-06) |
 
 **동작**:
-- **구현 단계(2026-10-08 결정)**: P3에서는 표시와 클릭 전달만 구현하고, 아래 dnd-kit 연결(droppable·`SortableContext`)은 `Board`를 만드는 P4에서 `Column`에 추가한다. 최종 구조(§1 트리)는 그대로다.
+- **구현 단계(2026-10-08 결정)**: P3에서는 표시와 클릭 전달만 구현하고, 아래 dnd-kit 연결(droppable·`SortableContext`)은 `Board`를 만드는 P4에서 `Column`에 추가한다. 최종 구조(§1 트리)는 그대로다. **P4 구현(2026-10-15)**: 칼럼 전체(`<section>`)가 droppable(id `column:<status>`, `boardUtils.columnDropId`)이다. 강조는 `useDroppable`의 `isOver`가 아니라 `Board`가 계산한 `isOver` prop을 쓴다 — 카드 위에 올라가도 그 카드가 속한 칼럼이 강조되도록 `Board`가 한 곳에서 판단하기 위함이다.
 - droppable 영역 (dnd-kit) — DONE 칼럼에 대한 드롭은 `PATCH /api/tickets/:id/complete`, 나머지는 `PATCH /api/tickets/reorder` 호출로 분기 (§7)
 - 칼럼 내부에 `SortableContext`(dnd-kit)를 두어 같은 칼럼 안에서의 순서 변경을 지원한다.
 - 티켓이 0개일 경우 `EmptyColumnState` 표시 (§8)
@@ -387,7 +388,8 @@ BACKLOG / TODO / IN_PROGRESS / DONE 4개 상태 모두 이 컴포넌트 하나�
 
 **동작**:
 - **구현 단계(2026-10-08 결정)**: P3에서는 표시·클릭·Enter만 구현하고, 아래 draggable 연결과 `DragOverlay`용 미리보기 표시는 P4에서 추가한다.
-- draggable (dnd-kit) — 드래그 시작 시 `DragOverlay`에 카드 미리보기 표시 (§7)
+- draggable (dnd-kit) — 드래그 시작 시 `DragOverlay`에 카드 미리보기 표시 (§7). **P4 구현(2026-10-15)**: 원본 카드는 `useSortable({ id: ticket.id })`로 드래그되고 드래그 중에는 `.card--dragging`이다. 미리보기는 같은 id를 `useSortable`에 중복 등록하지 않으려고 dnd 훅이 없는 별도 export `TicketCardOverlay`(`ticket`만 받음, `.card--overlay`, `role`·포커스 없음)로 그린다.
+- 드래그 중의 Enter는 "놓기" 키이므로 상세 모달을 열지 않는다 (`isDragging`이면 무시)
 - 클릭(드래그가 아닌 클릭)으로 `TicketModal` 오픈
 - `isOverdue === true`일 때 카드 테두리를 `status.overdue.border` 토큰으로 강조 표시 (DESIGN_SYSTEM.md §1 "Overdue 카드 표시 규칙" — 테두리는 `TicketCard` 자체가, 배지는 `OverdueIndicator`가 각각 담당)
 
@@ -528,7 +530,9 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
   - 대상이 `BACKLOG`/`TODO`/`IN_PROGRESS`: `Board.onReorder(ticketId, status, position)` → `BoardContainer` → `useTickets.reorder(...)` → `PATCH /api/tickets/reorder`
 - **드롭 위치 계산과 예외**: 빈 칼럼으로 옮길 때 `position`은 `1024`다 (DATA_MODEL.md §5.5, TC-API-007-20과 동일). DONE 칼럼 안에서의 이동·제자리 드롭은 API를 호출하지 않고 카드가 원래 자리로 돌아간다 (§3.4). 위치 계산과 낙관적 이동 같은 순수 로직은 컴포넌트 밖의 `src/client/lib/` 함수로 분리한다.
 - API 실패 시 `useTickets`가 드롭 이전 `BoardData` 스냅샷으로 조용히 롤백한다(별도 토스트/알림 없음) — 카드가 원래 위치로 즉시 되돌아가는 시각적 변화 자체가 실패를 알리는 신호이므로 추가 알림 컴포넌트를 두지 않는다.
+- **충돌 감지(P4 구현, 2026-10-15)**: 칼럼(droppable)이 카드(sortable)를 감싸고 있어 기본 감지로는 칼럼이 카드보다 우선하거나, 드래그 중인 카드의 크기에 따라 대상이 달라진다. 그래서 `Board`는 `src/client/lib/boardCollision.ts`의 감지 함수를 쓰며 **기준은 포인터 위치 하나**다(드래그 중인 카드의 크기·중심은 쓰지 않는다). 포인터가 속한 칼럼을 찾고(어느 칼럼에도 없으면 대상 없음 = 보드 바깥), 그 칼럼에서 세로로 가장 가까운 카드를 대상으로 삼아 포인터가 그 카드의 중심보다 아래면 `placeAfter`를 켠다. 카드가 없는 칼럼이면 칼럼 자신이 대상이다(빈 칼럼 = 1024). 그 결과 첫 카드 위 여백은 첫 카드 앞, 마지막 카드 아래 여백은 맨 뒤가 되어 칼럼이 가득 차 있어도, 드래그하는 카드가 아주 커도 원하는 자리에 놓을 수 있다 (TC-COMP-003-17, TC-CLIENT-UTIL-001-29~35). 같은 칼럼 안에서는 이동 방향이 우선한다. 키보드 이동은 포인터가 없어 드래그 중인 카드의 중심을 대신 쓰고 `sortableKeyboardCoordinates`를 쓴다. 실제 브라우저에서의 드래그 감각은 P7 수동 점검으로 확인한다.
 - 키보드 조작(NFR-003)은 dnd-kit의 기본 키보드 센서 패턴을 따른다: Tab으로 카드 포커스 → Space로 픽업 → 화살표 키로 칼럼/위치 이동 → Space로 드롭, Esc로 취소. `KeyboardSensor`의 시작 키는 기본값(Space, Enter)이 아니라 **Space로 제한**한다 — Enter는 `TicketCard`의 상세 모달 오픈에 쓴다 (§5.1, TRD.md §1.5).
+  - **알려진 한계(2026-10-16, 의도적으로 현 상태 유지)**: 키보드 이동은 `sortableKeyboardCoordinates`가 방향키마다 드래그 카드의 왼쪽 위를 "가장 가까운 카드·칼럼의 왼쪽 위"로 옮기는 방식이라 슬롯 단위 이동이 아니다. 포인터가 없는 키보드에서는 `boardCollisionDetection`이 드래그 카드의 중심으로 앞/뒤를 판정하므로, 칼럼에 카드가 여러 장일 때 **카드와 카드 사이로 놓을 수 없는 경우가 있다**(예: 카드 1, 2가 있는 칼럼에서 "1 앞"이나 "2 뒤"로만 이동). 드래그 카드와 대상 카드의 높이에 따라 달라진다. 마우스·터치 드래그는 포인터 기준이라 영향이 없다. 개선하려면 슬롯(각 카드의 앞, 칼럼 맨 끝) 단위로 이동하는 `coordinateGetter`를 직접 만들어야 하며, 필요해지면 이 절과 TC-COMP-003-07을 먼저 고친다.
 
 ---
 

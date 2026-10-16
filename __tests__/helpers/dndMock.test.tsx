@@ -101,6 +101,26 @@ describe("dndMock 헬퍼", () => {
     expect(onEnd.mock.calls[0][0].over.id).toBe(8);
   });
 
+  it("end()에 placeAfter를 주면 collisions[0].data에 담긴다", () => {
+    const onEnd = jest.fn();
+    render(<Probe onEnd={onEnd} />);
+
+    dnd.end("7", "8", { placeAfter: true });
+
+    expect(onEnd.mock.calls[0][0].collisions).toEqual([{ id: "8", data: { placeAfter: true } }]);
+  });
+
+  it("options를 주지 않으면 collisions의 data는 비어 있고, over가 null이면 collisions도 null이다", () => {
+    const onEnd = jest.fn();
+    render(<Probe onEnd={onEnd} />);
+
+    dnd.end("7", "8");
+    dnd.end("7", null);
+
+    expect(onEnd.mock.calls[0][0].collisions).toEqual([{ id: "8", data: undefined }]);
+    expect(onEnd.mock.calls[1][0].collisions).toBeNull();
+  });
+
   it("cancel()이 onDragCancel을 호출한다", () => {
     render(<Probe />);
     dnd.start("7");

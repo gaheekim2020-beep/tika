@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Column } from "@/client/components/Column";
 import { makeTicket } from "../helpers/fixtures";
+import { renderWithDnd } from "../helpers/renderWithDnd";
 
 const threeTickets = [
   makeTicket({ id: 1, title: "첫 번째", status: "TODO", position: 1024 }),
@@ -92,5 +93,29 @@ describe("Column (§4.1)", () => {
     render(<Column status="TODO" tickets={[]} onTicketClick={jest.fn()} />);
 
     expect(screen.getByRole("region", { name: "TODO 칼럼" })).not.toHaveClass("column--backlog");
+  });
+});
+
+describe("Column — dnd-kit 연결 (P4)", () => {
+  // TC-COMP-003-06의 기반
+  it("isOver=true이면 .column--over이고, 기본은 아니다", () => {
+    const { rerender } = render(<Column status="TODO" tickets={[]} onTicketClick={jest.fn()} />);
+    expect(screen.getByRole("region", { name: "TODO 칼럼" })).not.toHaveClass("column--over");
+
+    rerender(<Column status="TODO" tickets={[]} onTicketClick={jest.fn()} isOver />);
+    expect(screen.getByRole("region", { name: "TODO 칼럼" })).toHaveClass("column--over");
+  });
+
+  it("DndContext 안에서도 카드와 빈 상태가 그대로 렌더링된다", () => {
+    renderWithDnd(<Column status="TODO" tickets={threeTickets} onTicketClick={jest.fn()} />, [1, 2, 3]);
+
+    expect(screen.getAllByRole("button")).toHaveLength(3);
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("DndContext 안의 빈 칼럼도 빈 상태 문구를 보여 준다", () => {
+    renderWithDnd(<Column status="IN_PROGRESS" tickets={[]} onTicketClick={jest.fn()} />);
+
+    expect(screen.getByText("아직 카드가 없어요")).toBeInTheDocument();
   });
 });
