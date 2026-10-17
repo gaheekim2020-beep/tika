@@ -15,7 +15,7 @@
 | 백엔드 API 7개 엔드포인트 | 완료 (PR #8, #9 머지) |
 | `app/globals.css` 디자인 토큰·컴포넌트 클래스 | 작성·빌드 검증 완료, **미커밋** (`feature/frontend-styles`) |
 | `src/shared/design/colors.json` | 작성 완료, **미커밋** |
-| `src/client/{components,lib}` | P2~P5 컴포넌트, `getChangedFields`·`readError`·`boardUtils`, `Board`(P4) 구현 완료 (P4는 수동 확인 대기). `src/client/{api,hooks}`는 비어 있음 (P1 `ticketApi`·`useTickets`·`useTicket` 미구현) |
+| `src/client/{components,lib}` | P2~P5 컴포넌트, `getChangedFields`·`readError`·`boardUtils`, `Board`(P4) 구현 완료 (P4는 수동 확인 대기). `src/client/{api,hooks}`는 P1 완료(`ticketApi`, `useTickets`, `useTicket`) |
 | `@dnd-kit/core` 6.3.1 · `sortable` 10.0.0 · `utilities` 3.2.2 | 설치 완료 |
 
 ### Phase 요약
@@ -315,10 +315,10 @@ graph LR
 
 구현 `src/client/hooks/useTicket.ts` · 테스트 `__tests__/hooks/useTicket.test.tsx` · 선행 P1-1 · TC `TC-HOOK-002-01~06`
 
-- [ ] Red: `ticketId`가 `null`이면 조회하지 않고 `ticket=null`, 로딩 아님
-- [ ] Red: `ticketId`가 주어지면 `isLoading=true` → 응답 후 `ticket` 채움 (TC-COMP-007-01/02)
-- [ ] Red: 404/500이면 `error`가 채워지고 `ticket`은 `null` (TC-COMP-007-12)
-- [ ] Red: `ticketId`가 바뀌면 이전 응답이 새 요청 결과를 덮어쓰지 않는다 (경쟁 상태)
+- [X] Red: `ticketId`가 `null`이면 조회하지 않고 `ticket=null`, 로딩 아님
+- [X] Red: `ticketId`가 주어지면 `isLoading=true` → 응답 후 `ticket` 채움 (TC-COMP-007-01/02)
+- [X] Red: 404/500이면 `error`가 채워지고 `ticket`은 `null` (TC-COMP-007-12)
+- [X] Red: `ticketId`가 바뀌면 이전 응답이 새 요청 결과를 덮어쓰지 않는다 (경쟁 상태) **구현 결과(2026-10-16)**: `src/client/hooks/useTicket.ts`, 테스트 `__tests__/hooks/useTicket.test.tsx` 13개(경고 0건). 결과(`ticket`/`error`)는 상태로 보관하고 `isLoading`은 "id가 있는데 결과가 아직 없음"으로 계산한다. id가 바뀌는 렌더링에서 결과를 바로 비워(React의 "prop 변경 시 상태 초기화" 패턴) 이전 티켓이 잠깐 보이지 않게 했다 — `TicketForm`은 처음 받은 `ticket`으로 입력창을 초기화하므로 옛 값이 보이면 수정 폼에 옛 값이 들어가기 때문이다. 같은 id를 닫았다가(null) 다시 열어도 결과가 비워지고 다시 조회한다. 요청마다 `isCancelled` 플래그를 두어 id 변경·null 복귀·언마운트 후 도착한 응답(성공·실패 모두)은 버린다.
 
 **Phase 1 완료 기준**: 위 항목의 테스트 통과, `npx tsc --noEmit`, `src/client` 안에 `fetch` 직접 호출은 `ticketApi.ts`뿐.
 
