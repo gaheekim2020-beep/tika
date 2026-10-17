@@ -269,14 +269,14 @@ graph LR
 
 함수: `fetchBoard`, `fetchTicket(id)`, `createTicket(input)`, `updateTicket(id, input)`, `deleteTicket(id)`, `completeTicket(id)`, `reorderTicket(input)` + 에러 클래스 `ApiError`(`status`, `code`, `message`, `field?`).
 
-- [ ] Red: `fetchBoard`가 `GET /api/tickets`를 호출하고 4개 칼럼 객체를 반환한다
-- [ ] Red: `createTicket`/`updateTicket`/`reorderTicket`이 올바른 메서드·URL·JSON 본문·`Content-Type` 헤더로 호출한다 (`updateTicket`은 `/api/tickets/:id`, `completeTicket`은 `/api/tickets/:id/complete`)
-- [ ] Red: 응답의 `startedAt`/`completedAt`/`createdAt`/`updatedAt` ISO 문자열이 `Date`로 복원된다 (DATA_MODEL §4 "프론트엔드에서 수신 시 `new Date(...)`로 파싱하는 것을 전제"), `plannedStartDate`/`dueDate`는 문자열 그대로
-- [ ] Red: `deleteTicket`은 `204`(본문 없음)에서 오류 없이 완료된다
-- [ ] Red: 4xx/5xx 응답이 `{error:{code,message,field?}}`를 담은 `ApiError`로 reject된다 (`field`가 없으면 `undefined`)
-- [ ] Red: 본문이 JSON이 아닌 5xx 응답, `fetch` 자체의 reject(네트워크 오류)도 `ApiError`(예: `code: "NETWORK_ERROR"`)로 통일된다
-- [ ] 구현 메모: `fetch` 호출은 이 파일 안에서만, 반환 타입은 `@/shared/types` 사용, 공통 요청 함수 하나로 중복 제거
-- [ ] 명세 대조: API_SPEC의 URL·메서드·상태 코드와 일치하는가
+- [X] Red: `fetchBoard`가 `GET /api/tickets`를 호출하고 4개 칼럼 객체를 반환한다
+- [X] Red: `createTicket`/`updateTicket`/`reorderTicket`이 올바른 메서드·URL·JSON 본문·`Content-Type` 헤더로 호출한다 (`updateTicket`은 `/api/tickets/:id`, `completeTicket`은 `/api/tickets/:id/complete`)
+- [X] Red: 응답의 `startedAt`/`completedAt`/`createdAt`/`updatedAt` ISO 문자열이 `Date`로 복원된다 (DATA_MODEL §4 "프론트엔드에서 수신 시 `new Date(...)`로 파싱하는 것을 전제"), `plannedStartDate`/`dueDate`는 문자열 그대로
+- [X] Red: `deleteTicket`은 `204`(본문 없음)에서 오류 없이 완료된다
+- [X] Red: 4xx/5xx 응답이 `{error:{code,message,field?}}`를 담은 `ApiError`로 reject된다 (`field`가 없으면 `undefined`)
+- [X] Red: 본문이 JSON이 아닌 5xx 응답, `fetch` 자체의 reject(네트워크 오류)도 `ApiError`(예: `code: "NETWORK_ERROR"`)로 통일된다
+- [X] 구현 메모: `fetch` 호출은 이 파일 안에서만, 반환 타입은 `@/shared/types` 사용, 공통 요청 함수 하나로 중복 제거
+- [X] 명세 대조: API_SPEC의 URL·메서드·상태 코드와 일치하는가 **구현 결과(2026-10-16)**: `src/client/api/ticketApi.ts`에 `ApiError`(`status`, `code`, `field?`; 네트워크 오류는 `status=0`, `code="NETWORK_ERROR"`)와 함수 7개를 구현했다. 모든 요청이 내부 `request`를 거치며 `response.ok`가 아니면 `ApiError`로 throw하고, 오류 본문이 `{ error: { code, message } }` 모양이 아니면 `code="UNKNOWN_ERROR"`와 기본 메시지("요청을 처리하지 못했습니다")를 쓴다. 시각 필드 4개(`startedAt`, `completedAt`, `createdAt`, `updatedAt`)는 `Date`로 바꾸고 `plannedStartDate`/`dueDate`는 문자열 그대로 둔다. 테스트는 `__tests__/api/ticketApi.test.ts` 25개(TC-CLIENT-API-001-01~14와 `readError` 연동). API_SPEC §1~7의 URL·메서드와 일치함을 확인했다.
 
 #### P1-2. `boardUtils` (순수 함수, 결정 D11)
 
