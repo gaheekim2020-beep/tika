@@ -146,11 +146,11 @@ Tailwind 그리드: `grid-cols-[280px_1fr_1fr_1fr]`. BACKLOG 칼럼만 고정 �
 |------|------|------|------|
 | onNewTicketClick | `() => void` | O | "새 업무" 클릭 시 `TicketFormModal` 오픈 |
 
-**동작**: 페이지 상단 전역 헤더. 상단 고정(`sticky top-0`) 배치를 권장한다.
+**동작**: 페이지 상단 전역 헤더. 상단 고정(`sticky top-0`) 배치를 권장한다. `<header>`(랜드마크 `banner`)로 렌더링하고, 왼쪽에 로고("Tika")와 `SearchInput`, 오른쪽 끝에 `NewTicketButton`을 배치한다 (`docs/reference/mockup.html` 기준). 로고는 표시 전용이라 링크·버튼이 아니다.
 
 #### SearchInput (2차 구현 예정)
 
-MVP에서는 비활성(disabled) placeholder 입력창만 렌더링한다. 실제 검색 로직, API 연동은 구현하지 않는다 (PRD.md §3 "2차 스펙").
+MVP에서는 비활성(disabled) placeholder 입력창만 렌더링한다. 실제 검색 로직, API 연동은 구현하지 않는다 (PRD.md §3 "2차 스펙"). `type="search"`, `placeholder="검색 (2차 구현 예정)"`, 접근 가능한 이름 `aria-label="검색"`, Props 없음.
 
 #### NewTicketButton
 
@@ -161,7 +161,9 @@ MVP에서는 비활성(disabled) placeholder 입력창만 렌더링한다. 실�
 |------|------|------|------|
 | onClick | `() => void` | O | 클릭 시 `TicketFormModal` 오픈 |
 
-**접근성**: `aria-label="새 티켓 생성"`
+**표시**: 화면 텍스트는 "새 업무"다.
+
+**접근성**: `aria-label="새 티켓 생성"` (접근 가능한 이름이 화면 텍스트와 다르므로 테스트는 role+name 기준으로 쿼리한다)
 
 ### 3.4 Board
 

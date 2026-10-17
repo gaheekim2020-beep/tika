@@ -481,7 +481,7 @@ graph LR
 - [X] P4에서 `Column`에 dnd 연결: `useDroppable`(칼럼 영역 id는 `column:<status>`), `SortableContext`에 카드 id 목록 전달, `isOver`이면 `.column--over` 적용 (TC-COMP-003-06의 기반), 빈 칼럼에서도 드롭 영역이 유지되도록 `.card-list` 최소 높이 사용
 - [X] P4에서 `DndContext`에 고정 `id` 지정: 지정하지 않으면 `aria-describedby`(`DndDescribedBy-N`)가 서버·클라이언트에서 달라 hydration 오류가 난다 (P3 프리뷰에서 발생했던 문제)
 - [X] 구현 메모: `DndContext`는 `Board`에 한 곳만, `onTicketClick`은 `Column`으로 전달, 레이아웃은 `.board`(모바일 세로 / `md` 2열 / `lg` `280px 1fr 1fr 1fr`) **구현 결과(2026-10-15)**: 미리보기는 prop이 아니라 별도 export `TicketCardOverlay`로 분리했다(훅을 조건부로 호출할 수 없어서). `Column`에는 `isOver` prop을 추가했고(`Board`가 `onDragOver`로 계산), 충돌 감지는 포인터 기준 커스텀 함수를 쓴다(COMPONENT_SPEC §4.1·§5.1·§7 반영). `boardUtils`에는 `findTicket`·`getDropStatus`를 추가했고, `resolveDropTarget`은 `placeAfter` 옵션(포인터가 대상 카드의 중심보다 아래인지)을 받는다. 충돌 감지는 `src/client/lib/boardCollision.ts`로 분리해 **포인터 위치 하나**로 대상 카드와 앞/뒤를 정한다(칼럼이 가득 차도, 드래그하는 카드가 커도 원하는 자리에 놓기 위함, TC-COMP-003-17, TC-CLIENT-UTIL-001-27~35). 실제 센서에서의 클릭·Enter·Space 동작은 `BoardInteraction.test.tsx`가 검증하고, 드래그 이동·터치·키보드 이동의 실제 감각은 P7 수동 점검 대상이다.
-- [ ] 수동 확인(P7): TC-COMP-003-07(키보드 이동), 003-08~10(배치), 003-11(터치 드래그) — 키보드 이동은 카드 사이로 놓을 수 없는 경우가 있는 알려진 한계를 확인만 하고 넘어간다(COMPONENT_SPEC §7, 2026-10-16 결정)
+- [X] 수동 확인(P7): TC-COMP-003-07(키보드 이동), 003-08~10(배치), 003-11(터치 드래그) — 키보드 이동은 카드 사이로 놓을 수 없는 경우가 있는 알려진 한계를 확인만 하고 넘어간다(COMPONENT_SPEC §7, 2026-10-16 결정)
 
 **Phase 4 완료 기준**: TC-COMP-003-01~06, 013~016 자동 테스트 통과.
 
@@ -561,11 +561,11 @@ graph LR
 
 선행 `Button` · 클래스 `.topbar`, `.topbar-actions`, `.logo`, `.search-input`
 
-- [ ] Red: TC-COMP-005-01 — 상단에 "새 업무" 버튼이 보인다
-- [ ] Red: TC-COMP-005-02 — 버튼 클릭 시 `onNewTicketClick` 호출
-- [ ] Red: TC-COMP-005-03 — 검색 입력창이 비활성이라 타이핑해도 값이 바뀌지 않는다
-- [ ] Red: 버튼의 접근 가능한 이름이 `aria-label="새 티켓 생성"`이다 (화면 텍스트는 "새 업무"이므로 테스트 쿼리는 role+name 기준으로 맞춘다)
-- [ ] 구현 메모: `sticky top-0`, 검색은 2차 구현이라 로직·API 없이 비활성 placeholder만
+- [X] Red: TC-COMP-005-01 — 상단에 "새 업무" 버튼이 보인다
+- [X] Red: TC-COMP-005-02 — 버튼 클릭 시 `onNewTicketClick` 호출
+- [X] Red: TC-COMP-005-03 — 검색 입력창이 비활성이라 타이핑해도 값이 바뀌지 않는다
+- [X] Red: 버튼의 접근 가능한 이름이 `aria-label="새 티켓 생성"`이다 (화면 텍스트는 "새 업무"이므로 테스트 쿼리는 role+name 기준으로 맞춘다)
+- [X] 구현 메모: `sticky top-0`, 검색은 2차 구현이라 로직·API 없이 비활성 placeholder만 **구현 결과(2026-10-16)**: `BoardHeader`(`<header class="topbar">`, 왼쪽에 로고와 `SearchInput`, 오른쪽에 `NewTicketButton`), `SearchInput`(`type="search"`, `disabled`, `aria-label="검색"`), `NewTicketButton`(`Button primary`, 화면 "새 업무"/`aria-label="새 티켓 생성"`)을 각각 별도 파일로 만들었다. 로고는 mockup.html 기준으로 표시 전용(링크 아님)이며 COMPONENT_SPEC §3.3에 반영했다. 프리뷰는 `/preview`의 P6 섹션 `board-header`(화면 확인은 수동).
 
 #### P6-2. `BoardContainer` (`"use client"`) (§3.2, §10)
 
