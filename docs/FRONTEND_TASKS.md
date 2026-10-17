@@ -296,20 +296,20 @@ graph LR
 
 구현 `src/client/hooks/useTickets.ts` · 테스트 `__tests__/hooks/useTickets.test.tsx` (`renderHook`, `ticketApi` mock) · 선행 P1-1, P1-2 · 참조 §3.5, §7 · TC `TC-HOOK-001-01~18`
 
-- [ ] Red: 마운트 시 `isLoading=true`, 응답 후 `board`가 채워지고 `isLoading=false` (D2)
-- [ ] Red: 초기 조회 실패 시 `error` 메시지가 채워지고 `isLoading=false`
-- [ ] Red: `initialData`를 넘기면 최초 조회를 건너뛰고 그 값이 `board`가 된다 (D2)
-- [ ] Red: `error.field`가 있는 400은 `error` 상태를 채우지 않고 reject만 한다(필드 오류는 폼에 인라인), 그 외 실패는 `error`를 채운다 (D3)
-- [ ] Red: `clearError()`가 `error`를 비운다 — 같은 오류가 다시 발생하면 `error`가 다시 채워진다 (D9)
-- [ ] Red: `refetch()`가 다시 조회해 오류를 지우고 `board`를 갱신한다 (D1)
-- [ ] Red `create`: 성공 시 응답 티켓이 BACKLOG 맨 위에 추가된다. 실패 시 `ApiError`로 reject한다 (D3, `error` 상태 규칙은 아래 항목)
-- [ ] Red `update`: 성공 시 보드의 해당 카드가 서버 응답으로 교체된다. 실패 시 보드는 그대로이고 reject한다
-- [ ] Red `remove`: 성공 시 카드가 제거된다. 실패 시 카드가 남고 reject한다
-- [ ] Red `reorder`: 호출 **즉시** 보드가 낙관적으로 바뀌고(API 응답 전), 성공 시 서버가 돌려준 보드로 확정된다
-- [ ] Red `reorder` 실패: 드롭 이전 스냅샷으로 **조용히** 롤백하고 `error`는 채우지 않으며 reject하지 않는다 (TC-COMP-003-12, §7)
-- [ ] Red `complete`: 낙관적으로 DONE 맨 위로 이동 → 성공 시 확정, 실패 시 롤백
-- [ ] Red: 연속 호출에서 스냅샷이 섞이지 않는다 (두 번째 실패가 첫 번째 성공 결과를 되돌리지 않는다)
-- [ ] 구현 메모: 상태는 `useState`/`useRef`로 스냅샷 보관, 컴포넌트에서 `fetch` 호출 없음, 언마운트 후 `setState` 경고가 없는지 확인
+- [X] Red: 마운트 시 `isLoading=true`, 응답 후 `board`가 채워지고 `isLoading=false` (D2)
+- [X] Red: 초기 조회 실패 시 `error` 메시지가 채워지고 `isLoading=false`
+- [X] Red: `initialData`를 넘기면 최초 조회를 건너뛰고 그 값이 `board`가 된다 (D2)
+- [X] Red: `error.field`가 있는 400은 `error` 상태를 채우지 않고 reject만 한다(필드 오류는 폼에 인라인), 그 외 실패는 `error`를 채운다 (D3)
+- [X] Red: `clearError()`가 `error`를 비운다 — 같은 오류가 다시 발생하면 `error`가 다시 채워진다 (D9)
+- [X] Red: `refetch()`가 다시 조회해 오류를 지우고 `board`를 갱신한다 (D1)
+- [X] Red `create`: 성공 시 응답 티켓이 BACKLOG 맨 위에 추가된다. 실패 시 `ApiError`로 reject한다 (D3, `error` 상태 규칙은 아래 항목)
+- [X] Red `update`: 성공 시 보드의 해당 카드가 서버 응답으로 교체된다. 실패 시 보드는 그대로이고 reject한다
+- [X] Red `remove`: 성공 시 카드가 제거된다. 실패 시 카드가 남고 reject한다
+- [X] Red `reorder`: 호출 **즉시** 보드가 낙관적으로 바뀌고(API 응답 전), 성공 시 서버가 돌려준 보드로 확정된다
+- [X] Red `reorder` 실패: 드롭 이전 스냅샷으로 **조용히** 롤백하고 `error`는 채우지 않으며 reject하지 않는다 (TC-COMP-003-12, §7)
+- [X] Red `complete`: 낙관적으로 DONE 맨 위로 이동 → 성공 시 확정, 실패 시 롤백
+- [X] Red: 연속 호출에서 스냅샷이 섞이지 않는다 (두 번째 실패가 첫 번째 성공 결과를 되돌리지 않는다)
+- [X] 구현 메모: 상태는 `useState`/`useRef`로 스냅샷 보관, 컴포넌트에서 `fetch` 호출 없음, 언마운트 후 `setState` 경고가 없는지 확인 **구현 결과(2026-10-16)**: `src/client/hooks/useTickets.ts`, 테스트 `__tests__/hooks/useTickets.test.tsx` 34개(경고 0건). COMPONENT_SPEC §3.5의 "보드 전체 스냅샷 백업 후 복원" 대신 **실패한 카드 한 장만 이동 전 상태로 되돌린다**(`restoreTicket` = `moveTicket` + `replaceTicket`). 전체 스냅샷으로 복원하면 그 사이 먼저 성공한 다른 이동까지 지워지기 때문이다(TC-HOOK-001-16). 응답을 기다리는 이동 수(`pendingMovesRef`)가 0일 때만 `reorder`의 서버 보드로 통째로 교체하고, `complete`는 서버가 돌려준 카드 한 장만 반영한다. 최신 board는 `useRef`로 읽어 비동기 콜백이 옛 값을 붙잡지 않게 했고, 겹친 `refetch`는 마지막 요청의 결과만 반영하며 언마운트 후에는 상태를 갱신하지 않는다.
 
 #### P1-4. `useTicket` (결정 D4)
 

@@ -231,19 +231,25 @@ function useTickets(initialData?: BoardData): UseTicketsReturn;
 
 `reorder`와 `complete`는 `Board`(§3.4)의 `onDragEnd`가 드롭 대상 상태에 따라 `onReorder`/`onComplete` prop을 호출하고, `BoardContainer`가 이 콜백을 받아 각각 `useTickets.reorder`/`useTickets.complete`로 연결한다 (§7 "낙관적 업데이트" 참조) — DONE이면 `complete`, 그 외 3개 상태면 `reorder`.
 
-#### 낙관적 업데이트 패턴
+#### 낙관적 업데이트 패턴 (`reorder`, `complete`)
+
+`reorder`와 `complete`는 응답을 기다리지 않고 화면부터 바꾼다(NFR-004). `create`/`update`/`remove`는 낙관적으로 처리하지 않고 **서버 응답을 받은 뒤** 보드에 반영한다(실패 시 모달이 열린 채 유지되어야 하므로, 아래 "실패 처리" 참조).
 
 ```
-1. 현재 board 상태 백업
-2. UI 즉시 반영 (board 상태 변경)
+1. 이동하는 카드의 이전 상태를 기억 (칼럼·위치·나머지 필드, 해당 카드 한 장)
+2. UI 즉시 반영 (board 상태 변경: 이동은 moveTicket, 완료는 completeInBoard)
 3. API 호출
-4. 성공: board를 서버 응답으로 확정
-5. 실패: 백업한 상태로 롤백 + 에러 표시
+4. 성공: reorder는 서버가 돌려준 보드로, complete는 서버가 돌려준 카드 한 장(칼럼·위치·completedAt)으로 확정
+5. 실패: 그 카드만 기억해 둔 이전 상태로 되돌린다 (조용히: error를 채우지 않고 reject하지 않음, §7)
 ```
+
+- **보드 전체 스냅샷으로 복원하지 않는다.** 응답을 기다리는 동안 다른 카드를 연달아 옮길 수 있는데, 실패 시 보드 전체를 옛 스냅샷으로 되돌리면 그 사이 먼저 성공한 다른 이동까지 지워진다(TC-HOOK-001-16). 실패한 카드 한 장만 이동 전 상태로 되돌리면 다른 카드의 변경은 유지된다.
+- `reorder` 성공 시 서버 보드로 통째로 교체하는 것은 **응답을 기다리는 다른 이동이 없을 때**만 한다. 기다리는 이동이 남아 있으면 그 이동의 화면 반영을 지우지 않으려고 교체를 미루고, 마지막으로 끝나는 이동의 응답이 보드를 확정한다.
+- 최신 `board`는 비동기 콜백이 옛 값을 붙잡지 않도록 `useRef`로 읽는다. 언마운트된 뒤에 도착한 응답으로는 상태를 갱신하지 않는다(TC-HOOK-001-18).
 
 #### 실패 처리
 
-- `reorder`/`complete`: §7 규칙대로 조용히 롤백한다. `error`를 채우지 않고 reject하지도 않는다.
+- `reorder`/`complete`: §7 규칙대로 조용히 되돌린다(실패한 카드 한 장만, 위 패턴 5단계). `error`를 채우지 않고 reject하지도 않는다.
 - `create`/`update`/`remove`: 실패하면 `ApiError`(`code`, `message`, `field?`)로 **reject**한다. 호출부(모달)가 실패를 알아야 열린 채로 유지할 수 있기 때문이다. 이때 `error.field`가 있는 400은 폼 필드 아래에 인라인으로만 표시하므로(§6.2 `TicketForm`의 `errors`) `error` 상태를 채우지 않고, 그 외 실패(필드 없음, 404, 500, 네트워크 오류)는 `error`를 채워 `ErrorToast`(§8.3)로 표시한다.
 - `clearError()`: `error`를 비운다. `ErrorToast`의 `onDismiss`에 연결한다. 토스트가 닫힌 뒤에도 `error` 상태가 남아 있으면 같은 메시지의 오류가 다시 발생해도 토스트가 다시 표시되지 않기 때문이다.
 
@@ -301,7 +307,7 @@ function useTicket(ticketId: number | null): UseTicketReturn;
         → startedAt 규칙 적용 (TODO/IN_PROGRESS 진입 시 미설정이면 설정, BACKLOG 복귀 시 초기화 — DATA_MODEL.md §5.1)
         → completedAt 규칙 적용 (DONE에서 벗어날 때 초기화 — DATA_MODEL.md §5.2)
     3. 성공: board를 서버 응답으로 확정
-    4. 실패: 이전 board 상태로 조용히 롤백 (별도 토스트 없음, §7)
+    4. 실패: 그 카드만 이동 전 상태로 조용히 되돌림 (별도 토스트 없음, §3.5 "낙관적 업데이트 패턴"·§7)
 ```
 
 **티켓 생성 (FR-001, US-001)**
@@ -529,7 +535,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
   - 대상이 `DONE`: `Board.onComplete(id)` → `BoardContainer` → `useTickets.complete(id)` → `PATCH /api/tickets/:id/complete`
   - 대상이 `BACKLOG`/`TODO`/`IN_PROGRESS`: `Board.onReorder(ticketId, status, position)` → `BoardContainer` → `useTickets.reorder(...)` → `PATCH /api/tickets/reorder`
 - **드롭 위치 계산과 예외**: 빈 칼럼으로 옮길 때 `position`은 `1024`다 (DATA_MODEL.md §5.5, TC-API-007-20과 동일). DONE 칼럼 안에서의 이동·제자리 드롭은 API를 호출하지 않고 카드가 원래 자리로 돌아간다 (§3.4). 위치 계산과 낙관적 이동 같은 순수 로직은 컴포넌트 밖의 `src/client/lib/` 함수로 분리한다.
-- API 실패 시 `useTickets`가 드롭 이전 `BoardData` 스냅샷으로 조용히 롤백한다(별도 토스트/알림 없음) — 카드가 원래 위치로 즉시 되돌아가는 시각적 변화 자체가 실패를 알리는 신호이므로 추가 알림 컴포넌트를 두지 않는다.
+- API 실패 시 `useTickets`가 **실패한 카드 한 장만** 드롭 이전 상태(칼럼·위치)로 조용히 되돌린다(별도 토스트/알림 없음. 보드 전체를 옛 스냅샷으로 복원하지 않는 이유는 §3.5 참조) — 카드가 원래 위치로 즉시 되돌아가는 시각적 변화 자체가 실패를 알리는 신호이므로 추가 알림 컴포넌트를 두지 않는다.
 - **충돌 감지(P4 구현, 2026-10-15)**: 칼럼(droppable)이 카드(sortable)를 감싸고 있어 기본 감지로는 칼럼이 카드보다 우선하거나, 드래그 중인 카드의 크기에 따라 대상이 달라진다. 그래서 `Board`는 `src/client/lib/boardCollision.ts`의 감지 함수를 쓰며 **기준은 포인터 위치 하나**다(드래그 중인 카드의 크기·중심은 쓰지 않는다). 포인터가 속한 칼럼을 찾고(어느 칼럼에도 없으면 대상 없음 = 보드 바깥), 그 칼럼에서 세로로 가장 가까운 카드를 대상으로 삼아 포인터가 그 카드의 중심보다 아래면 `placeAfter`를 켠다. 카드가 없는 칼럼이면 칼럼 자신이 대상이다(빈 칼럼 = 1024). 그 결과 첫 카드 위 여백은 첫 카드 앞, 마지막 카드 아래 여백은 맨 뒤가 되어 칼럼이 가득 차 있어도, 드래그하는 카드가 아주 커도 원하는 자리에 놓을 수 있다 (TC-COMP-003-17, TC-CLIENT-UTIL-001-29~35). 같은 칼럼 안에서는 이동 방향이 우선한다. 키보드 이동은 포인터가 없어 드래그 중인 카드의 중심을 대신 쓰고 `sortableKeyboardCoordinates`를 쓴다. 실제 브라우저에서의 드래그 감각은 P7 수동 점검으로 확인한다.
 - 키보드 조작(NFR-003)은 dnd-kit의 기본 키보드 센서 패턴을 따른다: Tab으로 카드 포커스 → Space로 픽업 → 화살표 키로 칼럼/위치 이동 → Space로 드롭, Esc로 취소. `KeyboardSensor`의 시작 키는 기본값(Space, Enter)이 아니라 **Space로 제한**한다 — Enter는 `TicketCard`의 상세 모달 오픈에 쓴다 (§5.1, TRD.md §1.5).
   - **알려진 한계(2026-10-16, 의도적으로 현 상태 유지)**: 키보드 이동은 `sortableKeyboardCoordinates`가 방향키마다 드래그 카드의 왼쪽 위를 "가장 가까운 카드·칼럼의 왼쪽 위"로 옮기는 방식이라 슬롯 단위 이동이 아니다. 포인터가 없는 키보드에서는 `boardCollisionDetection`이 드래그 카드의 중심으로 앞/뒤를 판정하므로, 칼럼에 카드가 여러 장일 때 **카드와 카드 사이로 놓을 수 없는 경우가 있다**(예: 카드 1, 2가 있는 칼럼에서 "1 앞"이나 "2 뒤"로만 이동). 드래그 카드와 대상 카드의 높이에 따라 달라진다. 마우스·터치 드래그는 포인터 기준이라 영향이 없다. 개선하려면 슬롯(각 카드의 앞, 칼럼 맨 끝) 단위로 이동하는 `coordinateGetter`를 직접 만들어야 하며, 필요해지면 이 절과 TC-COMP-003-07을 먼저 고친다.
@@ -678,7 +684,7 @@ FR-006, US-008 대응. `DeleteButton`은 `Button`(§8.8, `variant="danger"`)을,
 
 - `BoardData` 전체는 `useTickets`(§3.5) 훅이 단일 소스로 보유하며, `BoardContainer`(클라이언트 컴포넌트, 최상위)가 이 훅을 호출해 하위 컴포넌트에 props로 전달한다. 하위 컴포넌트는 props로 내려받은 데이터만 표시하고, 자체적으로 서버 데이터를 재조회하지 않는다 (단, 모달이 열릴 때의 최신 단건 데이터는 `BoardContainer`가 `useTicket`으로 별도 조회해 `TicketModal`에 props로 전달한다 — §6.2).
 - API 호출은 `src/client/api/ticketApi.ts`를 통해서만 수행한다 (CLAUDE.md 규칙). `useTickets`를 포함해 어떤 컴포넌트/훅도 직접 `fetch`를 호출하지 않는다.
-- 낙관적 업데이트/롤백 상태는 `useTickets` 내부에서 관리한다 (드롭 직전 스냅샷 보관 → 실패 시 복원, §3.5/§7). `BoardContainer`는 이 상태를 직접 소유하지 않고 훅의 반환값을 그대로 사용한다.
+- 낙관적 업데이트/롤백 상태는 `useTickets` 내부에서 관리한다 (이동하는 카드의 이전 상태 보관 → 실패 시 그 카드만 복원, §3.5/§7). `BoardContainer`는 이 상태를 직접 소유하지 않고 훅의 반환값을 그대로 사용한다.
 - 드래그앤드롭 이벤트(`DndContext`, `onDragEnd`)는 `BoardContainer`가 아닌 `Board`(§3.4)가 소유한다. `Board`는 드롭 결과를 `onReorder`/`onComplete` prop으로 `BoardContainer`에 올려보내고, `BoardContainer`가 이를 받아 `useTickets`의 대응 액션을 호출한다 (§7).
 - 모달의 열림/닫힘 상태(`TicketFormModal`, `TicketModal`, `ConfirmDialog`)와 선택된 `ticketId`는 `BoardContainer`가 관리하고 콜백으로 하위에 전달한다. `TicketFormModal`은 `BoardHeader`의 `onNewTicketClick`, `TicketModal`은 `TicketCard`의 `onClick`이 각각 오픈을 트리거하지만 열림 상태 자체는 항상 `BoardContainer`가 소유한다.
 
