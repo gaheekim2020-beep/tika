@@ -136,8 +136,12 @@ Tailwind 그리드: `grid-cols-[280px_1fr_1fr_1fr]`. BACKLOG 칼럼만 고정 �
 | 상태 | 처리 |
 |------|------|
 | 로딩 중 | `BoardSkeleton` 표시 (§8) |
-| 에러 (500 등) | `ErrorBanner` 표시 + 재시도 버튼 |
+| 에러 (500 등) | `ErrorBanner` 표시 + 재시도 버튼 (`useTickets.refetch`) |
 | 성공 | `Board`에 `BoardData` + `onReorder`/`onComplete` 전달 |
+
+- **상단 헤더는 항상 표시**한다(`BoardHeader`). 로딩·에러 상태에서도 "새 업무" 버튼은 보인다.
+- **`ErrorBanner`는 첫 조회가 한 번도 성공하지 못했을 때만** 표시한다. 보드를 한 번 불러온 뒤에 `create`/`update`/`remove`가 실패해 `useTickets.error`가 채워져도 보드를 에러 화면으로 바꾸지 않는다. 그 실패는 각 모달이 자기 안에서 표시한다(필드 오류는 입력창 아래, 그 외는 모달 안 `ErrorToast`, §6.1·§6.2). `BoardContainer`가 같은 `error`로 토스트를 또 띄우면 중복되므로 띄우지 않는다.
+- **모달 연결**: `BoardHeader`의 `onNewTicketClick`이 `TicketFormModal`을 연다(제출은 `useTickets.create`, 성공하면 모달이 닫히고 BACKLOG 맨 위에 카드가 보인다). 카드 클릭은 선택된 `ticketId`를 저장하고, 그 값으로 `useTicket`을 호출해 결과(`ticket`/`isLoading`/`error`)를 `TicketModal`에 props로 전달한다(제출은 `useTickets.update`, 삭제는 `useTickets.remove`). 모달을 닫으면 `ticketId`를 `null`로 되돌린다.
 
 ### 3.3 BoardHeader
 
@@ -252,7 +256,7 @@ function useTickets(initialData?: BoardData): UseTicketsReturn;
 #### 실패 처리
 
 - `reorder`/`complete`: §7 규칙대로 조용히 되돌린다(실패한 카드 한 장만, 위 패턴 5단계). `error`를 채우지 않고 reject하지도 않는다.
-- `create`/`update`/`remove`: 실패하면 `ApiError`(`code`, `message`, `field?`)로 **reject**한다. 호출부(모달)가 실패를 알아야 열린 채로 유지할 수 있기 때문이다. 이때 `error.field`가 있는 400은 폼 필드 아래에 인라인으로만 표시하므로(§6.2 `TicketForm`의 `errors`) `error` 상태를 채우지 않고, 그 외 실패(필드 없음, 404, 500, 네트워크 오류)는 `error`를 채워 `ErrorToast`(§8.3)로 표시한다.
+- `create`/`update`/`remove`: 실패하면 `ApiError`(`code`, `message`, `field?`)로 **reject**한다. 호출부(모달)가 실패를 알아야 열린 채로 유지할 수 있기 때문이다. 이때 `error.field`가 있는 400은 폼 필드 아래에 인라인으로만 표시하므로(§6.2 `TicketForm`의 `errors`) `error` 상태를 채우지 않고, 그 외 실패(필드 없음, 404, 500, 네트워크 오류)는 `error`를 채운다. 이 실패를 `ErrorToast`(§8.3)로 **표시하는 것은 각 모달**이다(§6.1·§6.2, 호출부가 reject를 잡아 표시) — `BoardContainer`는 이 `error`를 첫 조회 실패 표시(`ErrorBanner`)에만 쓰고 토스트로는 쓰지 않는다(§3.2, 중복 방지).
 - `clearError()`: `error`를 비운다. `ErrorToast`의 `onDismiss`에 연결한다. 토스트가 닫힌 뒤에도 `error` 상태가 남아 있으면 같은 메시지의 오류가 다시 발생해도 토스트가 다시 표시되지 않기 때문이다.
 
 #### useTicket (상세 조회 훅)

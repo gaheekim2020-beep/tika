@@ -117,6 +117,8 @@
 | P6 | `BoardHeader`, `BoardContainer`(로딩·오류·정상) |
 
 > P6의 `BoardContainer`는 `ticketApi`로 서버를 호출하므로 DB 없이 프리뷰하려면 `fetch` 응답을 대체하는 방법이 필요하다. P6 시작 전에 방식을 정한다 (예: 프리뷰 전용 `fetch` mock, 또는 `useTickets`에 주입 가능한 `initialData` 사용).
+>
+> **결정(2026-10-16)**: `BoardContainer`는 프리뷰에 등록하지 않고 **실제 앱(`/`)과 개발 DB로 확인**한다. 부품(`BoardHeader`, `Board`, 모달 등)은 이미 프리뷰에서 확인했고, 통합 동작은 `BoardContainer.test.tsx`가 서버 응답 시나리오(성공·실패·재시도)로 검증하며, 프리뷰용 가짜 서버를 따로 만드는 비용이 효용보다 크다고 판단했다.
 
 ---
 
@@ -571,21 +573,21 @@ graph LR
 
 선행 `useTickets`, `useTicket`, `Board`, `BoardHeader`, `TicketFormModal`, `TicketModal`, `BoardSkeleton`, `ErrorBanner`
 
-- [ ] Red: TC-COMP-004-02 — 로딩 중에는 `BoardSkeleton`이 보인다
-- [ ] Red: TC-COMP-004-01 — 로딩이 끝나면 스켈레톤이 사라지고 4개 칼럼과 카드가 보인다
-- [ ] Red: TC-COMP-004-03 — 초기 조회 실패 시 칼럼 대신 오류 메시지와 "재시도" 버튼이 보인다
-- [ ] Red: TC-COMP-004-04 — "재시도" 클릭 후 성공하면 보드 화면으로 전환된다 (D1의 `refetch`)
-- [ ] Red: "새 업무" 클릭 → 생성 모달이 열리고, 제출 성공 시 닫히며 BACKLOG 맨 위에 카드가 보인다 (TC-COMP-005-02, 006-03)
-- [ ] Red: 카드 클릭 → 선택된 `ticketId`로 `useTicket`을 호출하고, 그 결과(`ticket`/`isLoading`/`error`)를 `TicketModal`에 props로 전달해 연다 (TC-COMP-001-08, 007-01~03, 007-12)
-- [ ] Red: 드롭 콜백이 `useTickets.reorder` / `complete`로 연결된다 (`Board`의 `onReorder`/`onComplete`)
-- [ ] Red: 삭제 성공 시 두 모달이 닫히고 카드가 사라진다 (TC-COMP-008-04)
-- [ ] 구현 메모: 모달 열림·선택된 `ticketId` 같은 **UI 상태만** 이 컴포넌트가 소유하고, DnD 로직은 갖지 않는다 (§1.1, §10)
+- [X] Red: TC-COMP-004-02 — 로딩 중에는 `BoardSkeleton`이 보인다
+- [X] Red: TC-COMP-004-01 — 로딩이 끝나면 스켈레톤이 사라지고 4개 칼럼과 카드가 보인다
+- [X] Red: TC-COMP-004-03 — 초기 조회 실패 시 칼럼 대신 오류 메시지와 "재시도" 버튼이 보인다
+- [X] Red: TC-COMP-004-04 — "재시도" 클릭 후 성공하면 보드 화면으로 전환된다 (D1의 `refetch`)
+- [X] Red: "새 업무" 클릭 → 생성 모달이 열리고, 제출 성공 시 닫히며 BACKLOG 맨 위에 카드가 보인다 (TC-COMP-005-02, 006-03)
+- [X] Red: 카드 클릭 → 선택된 `ticketId`로 `useTicket`을 호출하고, 그 결과(`ticket`/`isLoading`/`error`)를 `TicketModal`에 props로 전달해 연다 (TC-COMP-001-08, 007-01~03, 007-12)
+- [X] Red: 드롭 콜백이 `useTickets.reorder` / `complete`로 연결된다 (`Board`의 `onReorder`/`onComplete`)
+- [X] Red: 삭제 성공 시 두 모달이 닫히고 카드가 사라진다 (TC-COMP-008-04)
+- [X] 구현 메모: 모달 열림·선택된 `ticketId` 같은 **UI 상태만** 이 컴포넌트가 소유하고, DnD 로직은 갖지 않는다 (§1.1, §10) **구현 결과(2026-10-16)**: `src/client/components/BoardContainer.tsx`(`"use client"`), 테스트 `__tests__/components/BoardContainer.test.tsx` 15개(실제 `useTickets`/`useTicket`을 쓰고 `ticketApi`만 가짜로, 드롭은 `DndContext` mock으로 핸들러 호출). `BoardHeader`는 로딩·에러에서도 항상 보이고, **`ErrorBanner`는 첫 조회가 한 번도 성공하지 못했을 때만** 표시한다(`hasLoaded`를 렌더링 중 파생 상태로 계산). 이후 create/update/remove 실패로 `useTickets.error`가 채워져도 보드를 에러 화면으로 바꾸지 않으며, 그 실패는 각 모달이 자기 안에서 토스트(중복 없이 1개)와 필드 오류로 표시한다(COMPONENT_SPEC §3.2·§3.5 반영). 모달 상태는 `isCreateOpen`과 `selectedTicketId`뿐이다.
 
 #### P6-3. `app/page.tsx` (§3.1)
 
-- [ ] Red/확인: `"use client"`가 없는 서버 컴포넌트이며 `BoardContainer`만 렌더링한다 (렌더링 스모크 테스트)
-- [ ] 기존 템플릿 마크업(`Tika / 칸반 보드 준비 중`, `dark:` 클래스) 제거
-- [ ] `npm run build` 성공, `npm run dev`로 화면 확인
+- [X] Red/확인: `"use client"`가 없는 서버 컴포넌트이며 `BoardContainer`만 렌더링한다 (렌더링 스모크 테스트)
+- [X] 기존 템플릿 마크업(`Tika / 칸반 보드 준비 중`, `dark:` 클래스) 제거
+- [ ] `npm run build` 성공, `npm run dev`로 화면 확인 — 빌드 성공과 실행 중인 개발 서버의 응답(`GET /` 200, 헤더·스켈레톤 포함, 템플릿 문구 없음, `GET /api/tickets` 4칼럼)은 확인했고, **브라우저에서의 육안 확인(생성·수정·삭제·드래그)은 남음** **구현 결과(2026-10-16)**: `app/page.tsx`는 `"use client"` 없이 `BoardContainer`만 렌더링한다. 테스트 `__tests__/components/HomePage.test.tsx` 3개.
 
 **Phase 6 완료 기준**: TC-COMP-004-01~04, 005-01~03 통과, 전체 `npm run test`와 `npm run build` 통과.
 
