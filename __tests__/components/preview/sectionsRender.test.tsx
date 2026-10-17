@@ -58,4 +58,10 @@ describe("프리뷰 섹션 렌더링", () => {
 
     expect(ids).toEqual(["ticket-form", "ticket-detail-view", "delete-button", "ticket-form-modal", "ticket-modal"]);
   });
+
+  it("Phase 6 컴포넌트가 등록돼 있다 (BoardContainer는 데이터 계층 이후에 추가)", () => {
+    const ids = previewSections.filter((section) => section.phase === "P6").map((section) => section.id);
+
+    expect(ids).toEqual(["board-header"]);
+  });
 });

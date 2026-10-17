@@ -3,6 +3,7 @@ import { phase2Sections } from "./_sections/phase2";
 import { phase3Sections } from "./_sections/phase3";
 import { phase4Sections } from "./_sections/phase4";
 import { phase5Sections } from "./_sections/phase5";
+import { phase6Sections } from "./_sections/phase6";
 
 /*
  * 프리뷰 레지스트리 — /preview 갤러리에 보여줄 컴포넌트 목록.
@@ -49,4 +50,4 @@ export interface PreviewSectionDef {
   render: () => ReactNode;
 }
 
-export const previewSections: PreviewSectionDef[] = [...phase2Sections, ...phase3Sections, ...phase4Sections, ...phase5Sections];
+export const previewSections: PreviewSectionDef[] = [...phase2Sections, ...phase3Sections, ...phase4Sections, ...phase5Sections, ...phase6Sections];
