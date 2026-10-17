@@ -15,7 +15,7 @@
 | 백엔드 API 7개 엔드포인트 | 완료 (PR #8, #9 머지) |
 | `app/globals.css` 디자인 토큰·컴포넌트 클래스 | 작성·빌드 검증 완료, **미커밋** (`feature/frontend-styles`) |
 | `src/shared/design/colors.json` | 작성 완료, **미커밋** |
-| `src/client/{components,lib}` | P2~P5 컴포넌트, `getChangedFields`·`readError`·`boardUtils`, `Board`(P4) 구현 완료 (P4는 수동 확인 대기). `src/client/{api,hooks}`는 비어 있음 (P1 `ticketApi`·`useTickets`·`useTicket` 미구현) |
+| `src/client/{components,lib}` | P2~P5 컴포넌트, `getChangedFields`·`readError`·`boardUtils`, `Board`(P4) 구현 완료 (P4는 수동 확인 대기). `src/client/{api,hooks}`는 P1 완료(`ticketApi`, `useTickets`, `useTicket`) |
 | `@dnd-kit/core` 6.3.1 · `sortable` 10.0.0 · `utilities` 3.2.2 | 설치 완료 |
 
 ### Phase 요약
@@ -269,14 +269,14 @@ graph LR
 
 함수: `fetchBoard`, `fetchTicket(id)`, `createTicket(input)`, `updateTicket(id, input)`, `deleteTicket(id)`, `completeTicket(id)`, `reorderTicket(input)` + 에러 클래스 `ApiError`(`status`, `code`, `message`, `field?`).
 
-- [ ] Red: `fetchBoard`가 `GET /api/tickets`를 호출하고 4개 칼럼 객체를 반환한다
-- [ ] Red: `createTicket`/`updateTicket`/`reorderTicket`이 올바른 메서드·URL·JSON 본문·`Content-Type` 헤더로 호출한다 (`updateTicket`은 `/api/tickets/:id`, `completeTicket`은 `/api/tickets/:id/complete`)
-- [ ] Red: 응답의 `startedAt`/`completedAt`/`createdAt`/`updatedAt` ISO 문자열이 `Date`로 복원된다 (DATA_MODEL §4 "프론트엔드에서 수신 시 `new Date(...)`로 파싱하는 것을 전제"), `plannedStartDate`/`dueDate`는 문자열 그대로
-- [ ] Red: `deleteTicket`은 `204`(본문 없음)에서 오류 없이 완료된다
-- [ ] Red: 4xx/5xx 응답이 `{error:{code,message,field?}}`를 담은 `ApiError`로 reject된다 (`field`가 없으면 `undefined`)
-- [ ] Red: 본문이 JSON이 아닌 5xx 응답, `fetch` 자체의 reject(네트워크 오류)도 `ApiError`(예: `code: "NETWORK_ERROR"`)로 통일된다
-- [ ] 구현 메모: `fetch` 호출은 이 파일 안에서만, 반환 타입은 `@/shared/types` 사용, 공통 요청 함수 하나로 중복 제거
-- [ ] 명세 대조: API_SPEC의 URL·메서드·상태 코드와 일치하는가
+- [X] Red: `fetchBoard`가 `GET /api/tickets`를 호출하고 4개 칼럼 객체를 반환한다
+- [X] Red: `createTicket`/`updateTicket`/`reorderTicket`이 올바른 메서드·URL·JSON 본문·`Content-Type` 헤더로 호출한다 (`updateTicket`은 `/api/tickets/:id`, `completeTicket`은 `/api/tickets/:id/complete`)
+- [X] Red: 응답의 `startedAt`/`completedAt`/`createdAt`/`updatedAt` ISO 문자열이 `Date`로 복원된다 (DATA_MODEL §4 "프론트엔드에서 수신 시 `new Date(...)`로 파싱하는 것을 전제"), `plannedStartDate`/`dueDate`는 문자열 그대로
+- [X] Red: `deleteTicket`은 `204`(본문 없음)에서 오류 없이 완료된다
+- [X] Red: 4xx/5xx 응답이 `{error:{code,message,field?}}`를 담은 `ApiError`로 reject된다 (`field`가 없으면 `undefined`)
+- [X] Red: 본문이 JSON이 아닌 5xx 응답, `fetch` 자체의 reject(네트워크 오류)도 `ApiError`(예: `code: "NETWORK_ERROR"`)로 통일된다
+- [X] 구현 메모: `fetch` 호출은 이 파일 안에서만, 반환 타입은 `@/shared/types` 사용, 공통 요청 함수 하나로 중복 제거
+- [X] 명세 대조: API_SPEC의 URL·메서드·상태 코드와 일치하는가 **구현 결과(2026-10-16)**: `src/client/api/ticketApi.ts`에 `ApiError`(`status`, `code`, `field?`; 네트워크 오류는 `status=0`, `code="NETWORK_ERROR"`)와 함수 7개를 구현했다. 모든 요청이 내부 `request`를 거치며 `response.ok`가 아니면 `ApiError`로 throw하고, 오류 본문이 `{ error: { code, message } }` 모양이 아니면 `code="UNKNOWN_ERROR"`와 기본 메시지("요청을 처리하지 못했습니다")를 쓴다. 시각 필드 4개(`startedAt`, `completedAt`, `createdAt`, `updatedAt`)는 `Date`로 바꾸고 `plannedStartDate`/`dueDate`는 문자열 그대로 둔다. 테스트는 `__tests__/api/ticketApi.test.ts` 25개(TC-CLIENT-API-001-01~14와 `readError` 연동). API_SPEC §1~7의 URL·메서드와 일치함을 확인했다.
 
 #### P1-2. `boardUtils` (순수 함수, 결정 D11)
 
@@ -296,29 +296,29 @@ graph LR
 
 구현 `src/client/hooks/useTickets.ts` · 테스트 `__tests__/hooks/useTickets.test.tsx` (`renderHook`, `ticketApi` mock) · 선행 P1-1, P1-2 · 참조 §3.5, §7 · TC `TC-HOOK-001-01~18`
 
-- [ ] Red: 마운트 시 `isLoading=true`, 응답 후 `board`가 채워지고 `isLoading=false` (D2)
-- [ ] Red: 초기 조회 실패 시 `error` 메시지가 채워지고 `isLoading=false`
-- [ ] Red: `initialData`를 넘기면 최초 조회를 건너뛰고 그 값이 `board`가 된다 (D2)
-- [ ] Red: `error.field`가 있는 400은 `error` 상태를 채우지 않고 reject만 한다(필드 오류는 폼에 인라인), 그 외 실패는 `error`를 채운다 (D3)
-- [ ] Red: `clearError()`가 `error`를 비운다 — 같은 오류가 다시 발생하면 `error`가 다시 채워진다 (D9)
-- [ ] Red: `refetch()`가 다시 조회해 오류를 지우고 `board`를 갱신한다 (D1)
-- [ ] Red `create`: 성공 시 응답 티켓이 BACKLOG 맨 위에 추가된다. 실패 시 `ApiError`로 reject한다 (D3, `error` 상태 규칙은 아래 항목)
-- [ ] Red `update`: 성공 시 보드의 해당 카드가 서버 응답으로 교체된다. 실패 시 보드는 그대로이고 reject한다
-- [ ] Red `remove`: 성공 시 카드가 제거된다. 실패 시 카드가 남고 reject한다
-- [ ] Red `reorder`: 호출 **즉시** 보드가 낙관적으로 바뀌고(API 응답 전), 성공 시 서버가 돌려준 보드로 확정된다
-- [ ] Red `reorder` 실패: 드롭 이전 스냅샷으로 **조용히** 롤백하고 `error`는 채우지 않으며 reject하지 않는다 (TC-COMP-003-12, §7)
-- [ ] Red `complete`: 낙관적으로 DONE 맨 위로 이동 → 성공 시 확정, 실패 시 롤백
-- [ ] Red: 연속 호출에서 스냅샷이 섞이지 않는다 (두 번째 실패가 첫 번째 성공 결과를 되돌리지 않는다)
-- [ ] 구현 메모: 상태는 `useState`/`useRef`로 스냅샷 보관, 컴포넌트에서 `fetch` 호출 없음, 언마운트 후 `setState` 경고가 없는지 확인
+- [X] Red: 마운트 시 `isLoading=true`, 응답 후 `board`가 채워지고 `isLoading=false` (D2)
+- [X] Red: 초기 조회 실패 시 `error` 메시지가 채워지고 `isLoading=false`
+- [X] Red: `initialData`를 넘기면 최초 조회를 건너뛰고 그 값이 `board`가 된다 (D2)
+- [X] Red: `error.field`가 있는 400은 `error` 상태를 채우지 않고 reject만 한다(필드 오류는 폼에 인라인), 그 외 실패는 `error`를 채운다 (D3)
+- [X] Red: `clearError()`가 `error`를 비운다 — 같은 오류가 다시 발생하면 `error`가 다시 채워진다 (D9)
+- [X] Red: `refetch()`가 다시 조회해 오류를 지우고 `board`를 갱신한다 (D1)
+- [X] Red `create`: 성공 시 응답 티켓이 BACKLOG 맨 위에 추가된다. 실패 시 `ApiError`로 reject한다 (D3, `error` 상태 규칙은 아래 항목)
+- [X] Red `update`: 성공 시 보드의 해당 카드가 서버 응답으로 교체된다. 실패 시 보드는 그대로이고 reject한다
+- [X] Red `remove`: 성공 시 카드가 제거된다. 실패 시 카드가 남고 reject한다
+- [X] Red `reorder`: 호출 **즉시** 보드가 낙관적으로 바뀌고(API 응답 전), 성공 시 서버가 돌려준 보드로 확정된다
+- [X] Red `reorder` 실패: 드롭 이전 스냅샷으로 **조용히** 롤백하고 `error`는 채우지 않으며 reject하지 않는다 (TC-COMP-003-12, §7)
+- [X] Red `complete`: 낙관적으로 DONE 맨 위로 이동 → 성공 시 확정, 실패 시 롤백
+- [X] Red: 연속 호출에서 스냅샷이 섞이지 않는다 (두 번째 실패가 첫 번째 성공 결과를 되돌리지 않는다)
+- [X] 구현 메모: 상태는 `useState`/`useRef`로 스냅샷 보관, 컴포넌트에서 `fetch` 호출 없음, 언마운트 후 `setState` 경고가 없는지 확인 **구현 결과(2026-10-16)**: `src/client/hooks/useTickets.ts`, 테스트 `__tests__/hooks/useTickets.test.tsx` 34개(경고 0건). COMPONENT_SPEC §3.5의 "보드 전체 스냅샷 백업 후 복원" 대신 **실패한 카드 한 장만 이동 전 상태로 되돌린다**(`restoreTicket` = `moveTicket` + `replaceTicket`). 전체 스냅샷으로 복원하면 그 사이 먼저 성공한 다른 이동까지 지워지기 때문이다(TC-HOOK-001-16). 응답을 기다리는 이동 수(`pendingMovesRef`)가 0일 때만 `reorder`의 서버 보드로 통째로 교체하고, `complete`는 서버가 돌려준 카드 한 장만 반영한다. 최신 board는 `useRef`로 읽어 비동기 콜백이 옛 값을 붙잡지 않게 했고, 겹친 `refetch`는 마지막 요청의 결과만 반영하며 언마운트 후에는 상태를 갱신하지 않는다.
 
 #### P1-4. `useTicket` (결정 D4)
 
 구현 `src/client/hooks/useTicket.ts` · 테스트 `__tests__/hooks/useTicket.test.tsx` · 선행 P1-1 · TC `TC-HOOK-002-01~06`
 
-- [ ] Red: `ticketId`가 `null`이면 조회하지 않고 `ticket=null`, 로딩 아님
-- [ ] Red: `ticketId`가 주어지면 `isLoading=true` → 응답 후 `ticket` 채움 (TC-COMP-007-01/02)
-- [ ] Red: 404/500이면 `error`가 채워지고 `ticket`은 `null` (TC-COMP-007-12)
-- [ ] Red: `ticketId`가 바뀌면 이전 응답이 새 요청 결과를 덮어쓰지 않는다 (경쟁 상태)
+- [X] Red: `ticketId`가 `null`이면 조회하지 않고 `ticket=null`, 로딩 아님
+- [X] Red: `ticketId`가 주어지면 `isLoading=true` → 응답 후 `ticket` 채움 (TC-COMP-007-01/02)
+- [X] Red: 404/500이면 `error`가 채워지고 `ticket`은 `null` (TC-COMP-007-12)
+- [X] Red: `ticketId`가 바뀌면 이전 응답이 새 요청 결과를 덮어쓰지 않는다 (경쟁 상태) **구현 결과(2026-10-16)**: `src/client/hooks/useTicket.ts`, 테스트 `__tests__/hooks/useTicket.test.tsx` 13개(경고 0건). 결과(`ticket`/`error`)는 상태로 보관하고 `isLoading`은 "id가 있는데 결과가 아직 없음"으로 계산한다. id가 바뀌는 렌더링에서 결과를 바로 비워(React의 "prop 변경 시 상태 초기화" 패턴) 이전 티켓이 잠깐 보이지 않게 했다 — `TicketForm`은 처음 받은 `ticket`으로 입력창을 초기화하므로 옛 값이 보이면 수정 폼에 옛 값이 들어가기 때문이다. 같은 id를 닫았다가(null) 다시 열어도 결과가 비워지고 다시 조회한다. 요청마다 `isCancelled` 플래그를 두어 id 변경·null 복귀·언마운트 후 도착한 응답(성공·실패 모두)은 버린다.
 
 **Phase 1 완료 기준**: 위 항목의 테스트 통과, `npx tsc --noEmit`, `src/client` 안에 `fetch` 직접 호출은 `ticketApi.ts`뿐.
 
