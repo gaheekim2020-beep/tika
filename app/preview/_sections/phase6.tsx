@@ -4,7 +4,7 @@ import type { PreviewSectionDef } from "../_registry";
 
 /*
  * Phase 6 프리뷰 — 헤더 · 컨테이너.
- * BoardContainer는 useTickets/useTicket(P1)이 필요해서 데이터 계층이 끝난 뒤에 이 파일에 추가한다.
+ * BoardContainer는 서버 호출이 필요해서 프리뷰에 등록하지 않고 실제 앱(`/`)으로 확인한다 (docs/FRONTEND_TASKS.md §1.5 결정).
  */
 
 const BoardHeaderDemo = () => {
