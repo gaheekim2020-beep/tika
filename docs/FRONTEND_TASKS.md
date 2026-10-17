@@ -602,6 +602,7 @@ graph LR
   - [ ] TC-INT-003-01~06 드래그 이동·완료, 새로고침 유지, `completedAt` 초기화, 24시간 규칙, 네트워크 오류 롤백
   - [ ] TC-INT-004-01 수정 후 반영
   - [ ] TC-INT-005-01~04 삭제, 완료 후 삭제 연쇄, 취소
+  - **서버 계약 확인(2026-10-16, 자동화 아님·임시 스크립트)**: 테스트 DB(`tika_test`)로 프로덕션 서버를 띄워 `ticketApi`가 가정한 응답 모양을 23개 항목으로 확인했고 모두 통과했다 — 생성 201과 시각 필드의 ISO 문자열·`null`, `plannedStartDate`/`dueDate`의 `YYYY-MM-DD` 유지, 새 티켓이 BACKLOG 맨 위, 수정에서 `description: null`로 지우기, reorder가 보드 전체를 돌려줌, TODO 진입 시 `startedAt` 설정, complete의 `completedAt`, DONE에서 나오면 `completedAt` 초기화, 400(`error.field`)·404·잘못된 id·DONE 이동 거절의 오류 모양, 삭제 204(본문 없음)와 삭제 후 404. **화면에서의 새로고침 유지·네트워크 오류 롤백 등 위 체크박스 항목은 브라우저로 직접 확인해야 하므로 체크하지 않았다.**
 - [ ] **P7-3 수동 점검 표** (jsdom으로 검증할 수 없는 항목)
 
   | 항목 | TC | 방법 | 결과 |
@@ -617,8 +618,11 @@ graph LR
   | 드래그 중 미리보기·원본 자리 표시·대상 칼럼 강조 | COMP-003-05/06 | 육안 | [ ] |
 
 - [ ] **P7-4 접근성 점검 (NFR-003)**: Tab 순서, 포커스 링, 모달 포커스 이동·복귀, `aria-label` 일치(§11 표), 색상에 의존하지 않는 표시(지연 뱃지 텍스트, 우선순위 텍스트)
-- [ ] **P7-5 문서 정리**: 이 파일의 체크박스 갱신, TEST_CASES.md의 임시 TC ID 확정, 프론트엔드용 `CODE_MAP`(TC ↔ 구현·테스트 연결표) 작성 여부 결정, history.md 기록
-- [ ] **P7-6 최종 검증**: `npx tsc --noEmit`, `npm run lint`, `npm run test`, `npm run build`, `console.log` 없음, 번들에 `src/server` 코드가 섞이지 않았는지 확인
+  - **점검 결과(2026-10-16)**: ① §11 매핑표 대조 — `TicketCard`(role·aria-label·tabIndex·Enter), `Column`(aria-label), `PriorityBadge`(텍스트), `OverdueIndicator`(role=img·aria-label="지연됨"), `NewTicketButton`, 모달(role=dialog·aria-modal·첫 요소 포커스·Esc·포커스 복귀), `ConfirmDialog`(alertdialog·취소 포커스)는 코드와 기존 테스트로 모두 확인됨. ② 전역 `:focus-visible` 포커스 링(2px 브랜드색) 있음, 양수 `tabIndex`·`outline: none` 없음, `<html lang="ko">`. ③ **색상 대비 계산(`colors.json` 값, WCAG 4.5:1)에서 일부 미달**: placeholder 글자 `#9CA3AF`는 흰 배경 2.54:1·사이드바 배경 2.31:1(빈 칼럼 안내, DONE 안내 문구, 입력 placeholder에 사용), 보조 글자 `#6B7280`의 Backlog 사이드바 배경 위 4.39:1, 지연 뱃지 `#DC2626` on `#FEF2F2` 4.41:1. 입력창·검색창 테두리(`#D1D5DB`/`#E5E7EB`)는 비텍스트 대비 3:1에 못 미침(1.47:1). §11의 "토큰은 WCAG AA 충족" 전제와 어긋나므로 **디자인 토큰 변경 여부는 결정이 필요**하다(`colors.json`과 `globals.css`를 함께 수정, DESIGN_SYSTEM.md 갱신). ④ **남은 것(브라우저 필요)**: Tab 순서와 포커스 링의 실제 모습, 스크린 리더 낭독
+- [X] **P7-5 문서 정리**: 이 파일의 체크박스 갱신, TEST_CASES.md의 임시 TC ID 확정, 프론트엔드용 `CODE_MAP`(TC ↔ 구현·테스트 연결표) 작성 여부 결정, history.md 기록
+  - **결과(2026-10-16)**: 체크박스·요약 표 갱신. 테스트가 참조하는 TC ID 175개가 모두 TEST_CASES에 정의돼 있어 임시 ID는 없음(`getChangedFields` 테스트의 TC-CLIENT-UTIL-001-20~22 주석만 보강). TC 참조가 없는 것은 수동 점검 대상(TC-COMP-001-07, 003-07~10)뿐. **프론트엔드용 CODE_MAP은 만들지 않기로 결정** — 테스트마다 `// TC-…` 주석이 있어 `grep`으로 TC ↔ 테스트를 바로 찾을 수 있고, 175개를 표로 따로 관리하면 코드가 바뀔 때마다 어긋날 위험이 크다(백엔드 CODE_MAP.md는 라우트·서비스·스키마 줄 링크가 필요해서 가치가 달랐음). history.md 기록은 별도(gitignore 대상).
+- [X] **P7-6 최종 검증**: `npx tsc --noEmit`, `npm run lint`, `npm run test`, `npm run build`, `console.log` 없음, 번들에 `src/server` 코드가 섞이지 않았는지 확인
+  - **결과(2026-10-16)**: `npx tsc --noEmit` 통과, `npm run lint` 통과, `npm run test` 41개 스위트 613개 통과, `npm run build` 성공, `src`·`app`에 `console.log` 없음, 클라이언트 번들(`.next/static` 13개 JS)에 `drizzle`·`postgres`·`DATABASE_URL`·`ticketService`·`src/server`가 0건, `src/client`·`src/shared`·`app`(API 제외)에서 `@/server` import 없음, `src/server`·`app/api`에 React import 없음.
 
 ---
 
@@ -627,13 +631,13 @@ graph LR
 | Phase | 항목 | 완료 |
 |-------|------|------|
 | P0 | 스펙 갭 결정 · TC 보강 · 테스트 지원 코드 · 스타일 커밋 · 프리뷰 페이지 | [X] |
-| P1 | `ticketApi` · `boardUtils` · `useTickets` · `useTicket` | [ ] |
-| P2 | `Button` · `Badge` · `PriorityBadge` · `OverdueIndicator` · `Modal` · `ConfirmDialog` · `EmptyColumnState` · `BoardSkeleton` · `ErrorBanner` · `ErrorToast` | [ ] |
-| P3 | `ColumnHeader` · `TicketCard` · `Column` | [ ] |
-| P4 | `Board` | [ ] |
-| P5 | `TicketForm` · `TicketDetailView` · `DeleteButton` · `TicketFormModal` · `TicketModal` | [ ] |
-| P6 | `BoardHeader` · `BoardContainer` · `app/page.tsx` | [ ] |
-| P7 | 통합 · 수동 점검 · 접근성 · 문서 · 최종 검증 | [ ] |
+| P1 | `ticketApi` · `boardUtils` · `useTickets` · `useTicket` | [X] |
+| P2 | `Button` · `Badge` · `PriorityBadge` · `OverdueIndicator` · `Modal` · `ConfirmDialog` · `EmptyColumnState` · `BoardSkeleton` · `ErrorBanner` · `ErrorToast` | [X] |
+| P3 | `ColumnHeader` · `TicketCard` · `Column` | [X] |
+| P4 | `Board` | [X] |
+| P5 | `TicketForm` · `TicketDetailView` · `DeleteButton` · `TicketFormModal` · `TicketModal` | [X] |
+| P6 | `BoardHeader` · `BoardContainer` · `app/page.tsx` | [X] |
+| P7 | 통합 · 수동 점검 · 접근성 · 문서 · 최종 검증 | [ ] (문서·최종 검증 완료, 브라우저 수동 점검과 색상 대비 결정이 남음) |
 
 ### TC 커버리지 매핑 (TEST_CASES.md §3 기준)
 
